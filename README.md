@@ -3,6 +3,7 @@ SUPRSS est une application web de gestion de flux RSS, permettant de s’abonner
 
 📋 Description
 Application web complète avec base de données PostgreSQL, backend et frontend conteneurisés avec Docker.
+
 🏗️ Architecture
 suprss/
 ├── docker-compose.yml          # Orchestration des services
@@ -11,6 +12,8 @@ suprss/
 ├── backend/                    # [À venir] API backend
 ├── frontend/                   # [À venir] Interface utilisateur
 └── README.md
+
+
 ✅ Étapes accomplies
 Phase 1 : Base de données ✓
 
