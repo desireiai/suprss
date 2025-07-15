@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    container_name: suprss_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=suprss_bd
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=mypassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./bd_suprss/suprss_postgresql_schema.sql:/docker-entrypoint-initdb.d/suprss_postgresql_schema.sql
+    networks:
+      - suprss_network
+
+volumes:
+  postgres_data:
+
+networks:
+  suprss_network:
+    driver: bridge
