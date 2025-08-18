@@ -1,4 +1,5 @@
 version: '3.8'
+
 services:
   postgres:
     image: postgres:15
@@ -14,6 +15,34 @@ services:
       - ./bd_suprss/suprss_postgresql_schema.sql:/docker-entrypoint-initdb.d/suprss_postgresql_schema.sql
     networks:
       - suprss_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d suprss_bd"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: suprss_api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:mypassword@postgres:5432/suprss_bd
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=suprss_bd
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=mypassword
+    volumes:
+      - ./backend:/app  # Pour le développement avec hot reload
+    networks:
+      - suprss_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:
