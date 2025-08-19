@@ -1,5 +1,5 @@
 from typing import List, Optional
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, UniqueConstraint, Index, text, PrimaryKeyConstraint
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, UniqueConstraint, Index, text, PrimaryKeyConstraint, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import datetime
 from .base import Base
@@ -52,3 +52,42 @@ class Utilisateur(Base):
     membre_collection: Mapped[List['MembreCollection']] = relationship('MembreCollection', back_populates='utilisateur')
     message_collection: Mapped[List['MessageCollection']] = relationship('MessageCollection', back_populates='utilisateur')
     statut_utilisateur_article: Mapped[List['StatutUtilisateurArticle']] = relationship('StatutUtilisateurArticle', back_populates='utilisateur')
+    oauth_accounts = relationship("UtilisateurOAuth", back_populates="utilisateur", cascade="all, delete-orphan")
+
+class UtilisateurOAuth(Base):
+    """Modèle pour stocker les liaisons OAuth des utilisateurs"""
+    
+    __tablename__ = 'utilisateur_oauth'
+    
+    id = Column(Integer, primary_key=True)
+    utilisateur_id = Column(Integer, ForeignKey('utilisateur.id', ondelete='CASCADE'), nullable=False)
+    
+    # Informations du provider
+    provider = Column(String(50), nullable=False)  # 'google', 'microsoft', 'github'
+    provider_user_id = Column(String(255), nullable=False)  # ID unique chez le provider
+    provider_email = Column(String(255))
+    provider_username = Column(String(255))
+    
+    # Tokens (optionnels, pour refresh si nécessaire)
+    access_token = Column(Text)  # Peut être long
+    refresh_token = Column(Text)
+    token_expires_at = Column(DateTime)
+    
+    # Métadonnées
+    cree_le = Column(DateTime, default=datetime.utcnow, nullable=False)
+    derniere_utilisation = Column(DateTime)
+    
+    # Relations
+    utilisateur = relationship("Utilisateur", back_populates="oauth_accounts")
+    
+    # Contrainte d'unicité : un provider_user_id ne peut être lié qu'à un seul utilisateur
+    __table_args__ = (
+        UniqueConstraint('provider', 'provider_user_id', name='uq_provider_user'),
+        UniqueConstraint('utilisateur_id', 'provider', name='uq_user_provider'),  # Un seul compte par provider par utilisateur
+    )
+    
+    def __repr__(self):
+        return f"<UtilisateurOAuth(user_id={self.utilisateur_id}, provider={self.provider})>"
+
+
+# Ajouter cette ligne dans la classe Utilisateur existante (dans les relations) :
