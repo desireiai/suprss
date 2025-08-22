@@ -1,0 +1,1 @@
+"""Module core contenant la configuration et les utilitaires de base"""

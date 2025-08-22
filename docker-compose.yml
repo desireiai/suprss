@@ -1,18 +1,20 @@
-version: '3.8'
+version: '3.9'
 
 services:
+  # Base de données PostgreSQL
   postgres:
-    image: postgres:15
+    image: postgres:16-alpine
     container_name: suprss_postgres
-    ports:
-      - "5432:5432"
+    restart: unless-stopped
     environment:
-      - POSTGRES_DB=suprss_bd
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=mypassword
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: suprss_bd
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./bd_suprss/suprss_postgresql_schema.sql:/docker-entrypoint-initdb.d/suprss_postgresql_schema.sql
+    ports:
+      - "5432:5432"
     networks:
       - suprss_network
     healthcheck:
@@ -21,32 +23,156 @@ services:
       timeout: 10s
       retries: 3
 
-  api:
+  # Redis pour le cache et les sessions
+  redis:
+    image: redis:7-alpine
+    container_name: suprss_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - suprss_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend FastAPI
+  backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: suprss_api
+    container_name: suprss_backend
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://postgres:mypassword@postgres:5432/suprss_bd
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=your-secret-key-change-this-in-production
+      - CORS_ORIGINS='["http://localhost","http://localhost:3000","http://localhost:8080"]'
+    volumes:
+      - ./backend:/app
+      - backend_logs:/app/logs
     ports:
       - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:mypassword@postgres:5432/suprss_bd
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=suprss_bd
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=mypassword
-    volumes:
-      - ./backend:/app  # Pour le développement avec hot reload
-    networks:
-      - suprss_network
     depends_on:
       postgres:
         condition: service_healthy
-    restart: unless-stopped
+      redis:
+        condition: service_healthy
+    networks:
+      - suprss_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-volumes:
-  postgres_data:
+  # Celery Worker pour les tâches asynchrones
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: suprss_celery_worker
+    restart: unless-stopped
+    command: celery -A core.celery_app worker --loglevel=info
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://postgres:mypassword@postgres:5432/suprss_bd
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=your-secret-key-change-this-in-production
+    volumes:
+      - ./backend:/app
+      - celery_logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+      - backend
+    networks:
+      - suprss_network
+
+  # Celery Beat pour les tâches périodiques
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: suprss_celery_beat
+    restart: unless-stopped
+    command: celery -A core.celery_app beat --loglevel=info
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://postgres:mypassword@postgres:5432/suprss_bd
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=your-secret-key-change-this-in-production
+    volumes:
+      - ./backend:/app
+      - celery_logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+      - backend
+    networks:
+      - suprss_network
+
+  # Flower pour monitorer Celery (optionnel)
+  flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: suprss_flower
+    restart: unless-stopped
+    command: celery -A core.celery_app flower --port=5555
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://postgres:mypassword@postgres:5432/suprss_bd
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=your-secret-key-change-this-in-production
+    ports:
+      - "5555:5555"
+    depends_on:
+      - celery_worker
+      - redis
+    networks:
+      - suprss_network
+
+  # PgAdmin pour la gestion de la base de données (optionnel)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: suprss_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@suprss.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - suprss_network
 
 networks:
   suprss_network:
     driver: bridge
+    name: suprss_network
+
+volumes:
+  postgres_data:
+    name: suprss_postgres_data
+  redis_data:
+    name: suprss_redis_data
+  backend_logs:
+    name: suprss_backend_logs
+  celery_logs:
+    name: suprss_celery_logs
+  pgadmin_data:
+    name: suprss_pgadmin_data
+  nginx_logs:
+    name: suprss_nginx_logs
