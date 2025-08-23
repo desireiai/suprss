@@ -3,11 +3,11 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 
-from dto.search_dto import (
+from dtos.search_dto import (
     GlobalSearchDTO,
     SearchResultDTO
 )
-from business_models.search_business import SearchBusiness
+from business.search_business import SearchBusiness
 from routers.user_router import get_current_user
 from core.database import get_db
 

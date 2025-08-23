@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 
-from dto.rss_dto import (
+from dtos.rss_dto import (
     FluxCreateDTO,
     FluxUpdateDTO,
     FluxResponseDTO,
@@ -13,8 +13,8 @@ from dto.rss_dto import (
     ArticleFilterDTO,
     ArticleBulkActionDTO
 )
-from dto.pagination_dto import PaginationParamsDTO, PaginatedResponseDTO
-from business_models.rss_business import RSSBusiness
+from dtos.pagination_dto import PaginationParamsDTO, PaginatedResponseDTO
+from business.rss_business import RssBusiness
 from routers.user_router import get_current_user
 from core.database import get_db
 
@@ -28,7 +28,7 @@ async def create_flux(
     db: Session = Depends(get_db)
 ):
     """Ajoute un nouveau flux RSS pour l'utilisateur"""
-    rss_business = RSSBusiness(db)
+    rss_business = RssBusiness(db)
     
     # Vérifier si le flux existe déjà pour cet utilisateur
     if rss_business.flux_exists_for_user(current_user.id, str(flux_data.url)):
@@ -59,7 +59,7 @@ async def get_user_flux(
     db: Session = Depends(get_db)
 ):
     """Récupère tous les flux de l'utilisateur"""
-    rss_business = RSSBusiness(db)
+    rss_business = RssBusiness(db)
     
     flux_list = rss_business.get_user_flux(
         user_id=current_user.id,
@@ -76,7 +76,7 @@ async def get_flux_detail(
     db: Session = Depends(get_db)
 ):
     """Récupère les détails d'un flux"""
-    rss_business = RSSBusiness(db)
+    rss_business = RssBusiness(db)
     
     flux = rss_business.get_flux_by_id(flux_id)
     
@@ -103,7 +103,7 @@ async def update_flux(
     db: Session = Depends(get_db)
 ):
     """Met à jour un flux RSS"""
-    rss_business = RSSBusiness(db)
+    rss_business = RssBusiness(db)
     
     # Vérifier que le flux appartient à l'utilisateur
     if not rss_business.user_owns_flux(current_user.id, flux_id):
@@ -122,7 +122,7 @@ async def delete_flux(
     db: Session = Depends(get_db)
 ):
     """Supprime un flux RSS"""
-    rss_business = RSSBusiness(db)
+    rss_business = RssBusiness(db)
     
     # Vérifier que le flux appartient à l'utilisateur
     if not rss_business.user_owns_flux(current_user.id, flux_id):
@@ -142,7 +142,7 @@ async def refresh_flux(
     db: Session = Depends(get_db)
 ):
     """Force la mise à jour d'un flux RSS"""
-    rss_business = RSSBusiness(db)
+    rss_business = RssBusiness(db)
     
     # Vérifier que le flux appartient à l'utilisateur
     if not rss_business.user_owns_flux(current_user.id, flux_id):
@@ -180,7 +180,7 @@ async def get_articles(
     db: Session = Depends(get_db)
 ):
     """Récupère les articles avec filtres et pagination"""
-    rss_business = RSSBusiness(db)
+    rss_business = RssBusiness(db)
     
     # Créer le filtre
     filter_dto = ArticleFilterDTO(
@@ -223,7 +223,7 @@ async def get_article_detail(
     db: Session = Depends(get_db)
 ):
     """Récupère les détails d'un article"""
-    rss_business = RSSBusiness(db)
+    rss_business = RssBusiness(db)
     
     article = rss_business.get_article_by_id(article_id)
     
@@ -253,7 +253,7 @@ async def update_article_status(
     db: Session = Depends(get_db)
 ):
     """Met à jour le statut d'un article (lu/favori)"""
-    rss_business = RSSBusiness(db)
+    rss_business = RssBusiness(db)
     
     # Vérifier que l'utilisateur a accès à cet article
     if not rss_business.user_can_read_article(current_user.id, article_id):
@@ -286,7 +286,7 @@ async def bulk_article_action(
     db: Session = Depends(get_db)
 ):
     """Effectue une action en masse sur plusieurs articles"""
-    rss_business = RSSBusiness(db)
+    rss_business = RssBusiness(db)
     
     # Vérifier l'accès à tous les articles
     for article_id in bulk_action.article_ids:
@@ -316,7 +316,7 @@ async def get_favorite_articles(
     db: Session = Depends(get_db)
 ):
     """Récupère les articles favoris de l'utilisateur"""
-    rss_business = RSSBusiness(db)
+    rss_business = RssBusiness(db)
     
     favorites = rss_business.get_user_favorites(
         user_id=current_user.id,
@@ -334,7 +334,7 @@ async def get_unread_count(
     db: Session = Depends(get_db)
 ):
     """Récupère le nombre d'articles non lus"""
-    rss_business = RSSBusiness(db)
+    rss_business = RssBusiness(db)
     
     count = rss_business.get_unread_count(
         user_id=current_user.id,
@@ -352,7 +352,7 @@ async def import_opml(
     db: Session = Depends(get_db)
 ):
     """Importe des flux depuis un fichier OPML"""
-    rss_business = RSSBusiness(db)
+    rss_business = RssBusiness(db)
     
     try:
         imported_count = rss_business.import_opml(
@@ -382,7 +382,7 @@ async def export_opml(
     db: Session = Depends(get_db)
 ):
     """Exporte les flux de l'utilisateur au format OPML"""
-    rss_business = RSSBusiness(db)
+    rss_business = RssBusiness(db)
     
     opml_content = rss_business.export_to_opml(current_user.id)
     

@@ -6,7 +6,7 @@ from typing import Optional
 from datetime import datetime, timedelta
 import jwt
 
-from dto.user_dto import (
+from dtos.user_dto import (
     UserRegisterDTO,
     UserLoginDTO,
     OAuth2LoginDTO,
@@ -19,7 +19,7 @@ from dto.user_dto import (
     UserStatsDTO,
     TokenResponseDTO
 )
-from business_models.user_business import UserBusiness
+from business.user_business import UserBusiness
 from core.database import get_db
 from core.security import verify_token, create_access_token, create_refresh_token
 from core.config import settings

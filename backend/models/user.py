@@ -52,7 +52,7 @@ class Utilisateur(Base):
     membre_collection: Mapped[List['MembreCollection']] = relationship('MembreCollection', back_populates='utilisateur')
     message_collection: Mapped[List['MessageCollection']] = relationship('MessageCollection', back_populates='utilisateur')
     statut_utilisateur_article: Mapped[List['StatutUtilisateurArticle']] = relationship('StatutUtilisateurArticle', back_populates='utilisateur')
-    oauth_accounts = relationship("UtilisateurOAuth", back_populates="utilisateur", cascade="all, delete-orphan")
+    oauth_accounts: Mapped[List['UtilisateurOAuth']] = relationship("UtilisateurOAuth", back_populates="utilisateur", cascade="all, delete-orphan")
 
 class UtilisateurOAuth(Base):
     """Modèle pour stocker les liaisons OAuth des utilisateurs"""

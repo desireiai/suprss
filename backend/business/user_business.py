@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 import logging
 import secrets
 
-from models.user import Utilisateur, UtilisateurStatistiques
-from dto.user_dto import (
+from models.user import Utilisateur
+from dtos.user_dto import (
     UserRegisterDTO,
     UserUpdateDTO,
     UserPreferencesDTO,
@@ -22,7 +22,6 @@ from core.security import (
     verify_password_reset_token,
     validate_password_strength
 )
-from core.email import EmailService
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +30,6 @@ class UserBusiness:
     
     def __init__(self, db: Session):
         self.db = db
-        self.email_service = EmailService()
     
     def create_user(self, user_data: UserRegisterDTO) -> Utilisateur:
         """Crée un nouvel utilisateur"""
@@ -60,7 +58,7 @@ class UserBusiness:
             self.db.refresh(user)
             
             # Créer les statistiques initiales
-            stats = UtilisateurStatistiques(
+            stats = user(
                 utilisateur_id=user.id,
                 total_articles_lus=0,
                 total_favoris=0,

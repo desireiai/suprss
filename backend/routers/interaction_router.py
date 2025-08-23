@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 
-from dto.interaction_dto import (
+from dtos.interaction_dto import (
     CommentCreateDTO,
     CommentUpdateDTO,
     CommentResponseDTO,
@@ -12,9 +12,9 @@ from dto.interaction_dto import (
     MessageResponseDTO,
     NotificationDTO
 )
-from dto.pagination_dto import PaginationParamsDTO, PaginatedResponseDTO
-from business_models.interaction_business import InteractionBusiness
-from business_models.collection_business import CollectionBusiness
+from dtos.pagination_dto import PaginationParamsDTO, PaginatedResponseDTO
+from business.interaction_business import InteractionBusiness
+from business.collection_business import CollectionBusiness
 from routers.user_router import get_current_user
 from core.database import get_db
 from core.websocket_manager import ConnectionManager

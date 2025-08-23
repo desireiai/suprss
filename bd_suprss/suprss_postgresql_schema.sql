@@ -62,6 +62,48 @@ CREATE INDEX idx_utilisateur_token_verification ON utilisateur(token_verificatio
 CREATE INDEX idx_utilisateur_token_reset ON utilisateur(token_reset_password);
 
 -- =====================================================
+-- TABLE UTILISATEUR_OAUTH
+-- =====================================================
+
+CREATE TABLE utilisateur_oauth (
+    id SERIAL PRIMARY KEY,
+    utilisateur_id INTEGER NOT NULL,
+
+    -- Informations du provider
+    provider VARCHAR(50) NOT NULL,             -- Exemple: 'google', 'github', 'microsoft'
+    provider_user_id VARCHAR(255) NOT NULL,    -- ID unique du compte côté provider
+    provider_email VARCHAR(255),
+    provider_username VARCHAR(255),
+
+    -- Tokens éventuels
+    access_token TEXT,
+    refresh_token TEXT,
+    token_expires_at TIMESTAMP,
+
+    -- Métadonnées
+    cree_le TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    derniere_utilisation TIMESTAMP,
+
+    -- Contraintes de relation et unicité
+    CONSTRAINT fk_utilisateur_oauth_utilisateur
+        FOREIGN KEY (utilisateur_id) REFERENCES utilisateur(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT uq_provider_user
+        UNIQUE (provider, provider_user_id),
+
+    CONSTRAINT uq_user_provider
+        UNIQUE (utilisateur_id, provider)
+);
+
+-- Index pour optimisation
+CREATE INDEX idx_utilisateur_oauth_utilisateur ON utilisateur_oauth(utilisateur_id);
+CREATE INDEX idx_utilisateur_oauth_provider ON utilisateur_oauth(provider);
+CREATE INDEX idx_utilisateur_oauth_provider_user ON utilisateur_oauth(provider, provider_user_id);
+CREATE INDEX idx_utilisateur_oauth_cree_le ON utilisateur_oauth(cree_le DESC);
+
+
+-- =====================================================
 -- TABLE COLLECTION
 -- =====================================================
 

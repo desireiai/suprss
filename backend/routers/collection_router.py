@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from dto.collection_dto import (
+from dtos.collection_dto import (
     CollectionCreateDTO,
     CollectionUpdateDTO,
     CollectionFluxAddDTO,
@@ -13,8 +13,8 @@ from dto.collection_dto import (
     CollectionResponseDTO,
     CollectionDetailResponseDTO
 )
-from dto.pagination_dto import PaginationParamsDTO, PaginatedResponseDTO
-from business_models.collection_business import CollectionBusiness
+from dtos.pagination_dto import PaginationParamsDTO, PaginatedResponseDTO
+from business.collection_business import CollectionBusiness
 from routers.user_router import get_current_user
 from core.database import get_db
 

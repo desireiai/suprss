@@ -1,9 +1,11 @@
 # main_minimal.py - Version ultra minimale pour tester
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from routers import rss_router, category_router, collection_router, interaction_router, search_router
 
 app = FastAPI(
     title="SUPRSS API - Test",
+    description="API de gestion de flux RSS avec partage et collaboration",
     version="1.0.0",
     docs_url="/api/docs"
 )
@@ -16,6 +18,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+#app.include_router(user_router)
+app.include_router(rss_router)
+app.include_router(category_router)
+#app.include_router(collection_router)
+#app.include_router(interaction_router)
+#app.include_router(search_router)
 
 @app.get("/")
 def root():
@@ -31,4 +40,4 @@ def test():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)  
