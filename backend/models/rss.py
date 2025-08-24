@@ -1,11 +1,7 @@
-from typing import List, Optional
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, Column, DateTime, ForeignKeyConstraint, Integer, String, Text, UniqueConstraint, Index, text, PrimaryKeyConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, ForeignKeyConstraint, Integer, String, Text, UniqueConstraint, Index, text, PrimaryKeyConstraint
+from sqlalchemy.orm import relationship
 import datetime
 from .base import Base
-from .interaction import CommentaireArticle, StatutUtilisateurArticle    
-from .collection import CollectionFlux
-from .category import FluxCategorie
 
 class FluxRss(Base):
     __tablename__ = 'flux_rss'
@@ -19,19 +15,19 @@ class FluxRss(Base):
         {'comment': "Flux RSS configurés dans l'application"}
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    nom: Mapped[str] = mapped_column(String(255))
-    url: Mapped[str] = mapped_column(Text)
-    description: Mapped[Optional[str]] = mapped_column(Text)
-    frequence_maj_heures: Mapped[Optional[int]] = mapped_column(Integer, server_default=text('24'))
-    est_actif: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text('true'))
-    derniere_maj: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime)
-    cree_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
-    modifie_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    id = Column(Integer, primary_key=True)
+    nom = Column(String(255), nullable=False)
+    url = Column(Text, nullable=False)
+    description = Column(Text)
+    frequence_maj_heures = Column(Integer, server_default=text('24'))
+    est_actif = Column(Boolean, server_default=text('true'))
+    derniere_maj = Column(DateTime)
+    cree_le = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    modifie_le = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
 
-    article: Mapped[List['Article']] = relationship('Article', back_populates='flux')
-    collection_flux: Mapped[List['CollectionFlux']] = relationship('CollectionFlux', back_populates='flux')
-    flux_categorie: Mapped[List['FluxCategorie']] = relationship('FluxCategorie', back_populates='flux')
+    article = relationship('Article', back_populates='flux')
+    collection_flux = relationship('CollectionFlux', back_populates='flux')
+    flux_categorie = relationship('FluxCategorie', back_populates='flux')
 
 class Article(Base):
     __tablename__ = 'article'
@@ -47,18 +43,18 @@ class Article(Base):
         {'comment': 'Articles récupérés depuis les flux RSS'}
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    flux_id: Mapped[int] = mapped_column(Integer)
-    titre: Mapped[str] = mapped_column(String(500))
-    lien: Mapped[str] = mapped_column(Text)
-    guid: Mapped[str] = mapped_column(String(500))
-    auteur: Mapped[Optional[str]] = mapped_column(String(255))
-    contenu: Mapped[Optional[str]] = mapped_column(Text)
-    resume: Mapped[Optional[str]] = mapped_column(Text)
-    publie_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime)
-    recupere_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
-    modifie_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    id = Column(Integer, primary_key=True)
+    flux_id = Column(Integer, nullable=False)
+    titre = Column(String(500), nullable=False)
+    lien = Column(Text, nullable=False)
+    guid = Column(String(500), nullable=False)
+    auteur = Column(String(255))
+    contenu = Column(Text)
+    resume = Column(Text)
+    publie_le = Column(DateTime)
+    recupere_le = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    modifie_le = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
 
-    flux: Mapped['FluxRss'] = relationship('FluxRss', back_populates='article')
-    commentaire_article: Mapped[List['CommentaireArticle']] = relationship('CommentaireArticle', back_populates='article')
-    statut_utilisateur_article: Mapped[List['StatutUtilisateurArticle']] = relationship('StatutUtilisateurArticle', back_populates='article')
+    flux = relationship('FluxRss', back_populates='article')
+    commentaire_article = relationship('CommentaireArticle', back_populates='article')
+    statut_utilisateur_article = relationship('StatutUtilisateurArticle', back_populates='article')

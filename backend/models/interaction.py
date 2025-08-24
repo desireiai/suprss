@@ -1,11 +1,7 @@
 from typing import List, Optional
 from sqlalchemy import Boolean, Column, DateTime, ForeignKeyConstraint, Integer, Text, UniqueConstraint, Index, text, PrimaryKeyConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-import datetime
 from .base import Base
-from .user import Utilisateur
-from .rss import Article
-from .collection import Collection
 
 class CommentaireArticle(Base):
     __tablename__ = 'commentaire_article'
@@ -23,20 +19,20 @@ class CommentaireArticle(Base):
         {'comment': 'Commentaires sur les articles dans les collections partagées'}
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    article_id: Mapped[int] = mapped_column(Integer)
-    utilisateur_id: Mapped[int] = mapped_column(Integer)
-    collection_id: Mapped[int] = mapped_column(Integer)
-    contenu: Mapped[str] = mapped_column(Text)
-    commentaire_parent_id: Mapped[Optional[int]] = mapped_column(Integer)
-    cree_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
-    modifie_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    id = Column(Integer, primary_key=True)
+    article_id = Column(Integer, nullable=False)
+    utilisateur_id = Column(Integer, nullable=False)
+    collection_id = Column(Integer, nullable=False)
+    contenu = Column(Text, nullable=False)
+    commentaire_parent_id = Column(Integer)
+    cree_le = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    modifie_le = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
 
-    article: Mapped['Article'] = relationship('Article', back_populates='commentaire_article')
-    collection: Mapped['Collection'] = relationship('Collection', back_populates='commentaire_article')
-    commentaire_parent: Mapped[Optional['CommentaireArticle']] = relationship('CommentaireArticle', remote_side=[id], back_populates='commentaire_parent_reverse')
-    commentaire_parent_reverse: Mapped[List['CommentaireArticle']] = relationship('CommentaireArticle', remote_side=[commentaire_parent_id], back_populates='commentaire_parent')
-    utilisateur: Mapped['Utilisateur'] = relationship('Utilisateur', back_populates='commentaire_article')
+    article = relationship('Article', back_populates='commentaire_article')
+    collection = relationship('Collection', back_populates='commentaire_article')
+    commentaire_parent = relationship('CommentaireArticle', remote_side=[id], back_populates='commentaire_parent_reverse')
+    commentaire_parent_reverse = relationship('CommentaireArticle', remote_side=[commentaire_parent_id], back_populates='commentaire_parent')
+    utilisateur = relationship('Utilisateur', back_populates='commentaire_article')
 
 
 class MessageCollection(Base):
@@ -51,15 +47,15 @@ class MessageCollection(Base):
         {'comment': 'Messages de chat dans les collections partagées'}
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    collection_id: Mapped[int] = mapped_column(Integer)
-    utilisateur_id: Mapped[int] = mapped_column(Integer)
-    contenu: Mapped[str] = mapped_column(Text)
-    cree_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
-    modifie_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    id = Column(Integer, primary_key=True)
+    collection_id = Column(Integer, nullable=False)
+    utilisateur_id = Column(Integer, nullable=False)
+    contenu = Column(Text, nullable=False)
+    cree_le = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    modifie_le = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
 
-    collection: Mapped['Collection'] = relationship('Collection', back_populates='message_collection')
-    utilisateur: Mapped['Utilisateur'] = relationship('Utilisateur', back_populates='message_collection')
+    collection = relationship('Collection', back_populates='message_collection')
+    utilisateur = relationship('Utilisateur', back_populates='message_collection')
 
 
 class StatutUtilisateurArticle(Base):
@@ -76,13 +72,13 @@ class StatutUtilisateurArticle(Base):
         {'comment': 'Statut de lecture et favoris par utilisateur'}
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    utilisateur_id: Mapped[int] = mapped_column(Integer)
-    article_id: Mapped[int] = mapped_column(Integer)
-    est_lu: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text('false'))
-    est_favori: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text('false'))
-    lu_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime)
-    mis_en_favori_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime)
+    id = Column(Integer, primary_key=True)
+    utilisateur_id = Column(Integer, nullable=False)
+    article_id = Column(Integer, nullable=False)
+    est_lu = Column(Boolean, server_default=text('false'))
+    est_favori = Column(Boolean, server_default=text('false'))
+    lu_le = Column(DateTime)
+    mis_en_favori_le = Column(DateTime)
 
-    article: Mapped['Article'] = relationship('Article', back_populates='statut_utilisateur_article')
-    utilisateur: Mapped['Utilisateur'] = relationship('Utilisateur', back_populates='statut_utilisateur_article')
+    article = relationship('Article', back_populates='statut_utilisateur_article')
+    utilisateur = relationship('Utilisateur', back_populates='statut_utilisateur_article')

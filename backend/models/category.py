@@ -1,10 +1,6 @@
-from typing import List, Optional
 from sqlalchemy import Column, DateTime, ForeignKeyConstraint, Integer, String, UniqueConstraint, Index, text, PrimaryKeyConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-import datetime
+from sqlalchemy.orm import relationship
 from .base import Base
-from .user import Utilisateur
-from .rss import FluxRss
 
 class Categorie(Base):
     __tablename__ = 'categorie'
@@ -15,15 +11,14 @@ class Categorie(Base):
         Index('idx_categorie_utilisateur', 'utilisateur_id')
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    nom: Mapped[str] = mapped_column(String(100))
-    utilisateur_id: Mapped[int] = mapped_column(Integer)
-    couleur: Mapped[Optional[str]] = mapped_column(String(7), server_default=text("'#007bff'::character varying"))
-    cree_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    id = Column(Integer, primary_key=True)
+    nom = Column(String(100), nullable=False)
+    utilisateur_id = Column(Integer, nullable=False)
+    couleur = Column(String(7), server_default=text("'#007bff'::character varying"))
+    cree_le = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
 
-    utilisateur: Mapped['Utilisateur'] = relationship('Utilisateur', back_populates='categorie')
-    flux_categorie: Mapped[List['FluxCategorie']] = relationship('FluxCategorie', back_populates='categorie')
-
+    utilisateur = relationship('Utilisateur', back_populates='categorie')
+    flux_categorie = relationship('FluxCategorie', back_populates='categorie')
 
 class FluxCategorie(Base):
     __tablename__ = 'flux_categorie'
@@ -36,9 +31,9 @@ class FluxCategorie(Base):
         Index('idx_flux_categorie_flux', 'flux_id')
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    flux_id: Mapped[int] = mapped_column(Integer)
-    categorie_id: Mapped[int] = mapped_column(Integer)
+    id = Column(Integer, primary_key=True)
+    flux_id = Column(Integer, nullable=False)
+    categorie_id = Column(Integer, nullable=False)
 
-    categorie: Mapped['Categorie'] = relationship('Categorie', back_populates='flux_categorie')
-    flux: Mapped['FluxRss'] = relationship('FluxRss', back_populates='flux_categorie')
+    categorie = relationship('Categorie', back_populates='flux_categorie')
+    flux = relationship('FluxRss', back_populates='flux_categorie')

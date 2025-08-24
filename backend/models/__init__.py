@@ -1,5 +1,3 @@
-from .base import Base
-
 # Modèles utilisateur
 from .user import Utilisateur, UtilisateurOAuth
 
@@ -26,7 +24,6 @@ from .import_export import JournalImport, JournalExport
 from .views import t_vue_articles_utilisateur, t_vue_collections_detaillees
 
 __all__ = [
-    'Base',
     'Utilisateur',
     'UtilisateurOAuth',
     'FluxRss',

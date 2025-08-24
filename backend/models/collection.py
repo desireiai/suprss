@@ -1,11 +1,7 @@
 from typing import List, Optional
 from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKeyConstraint, Integer, String, Text, UniqueConstraint, Index, text, PrimaryKeyConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-import datetime
+from sqlalchemy.orm import relationship
 from .base import Base
-from .user import Utilisateur
-from .rss import FluxRss
-from .interaction import CommentaireArticle, MessageCollection
 
 class Collection(Base):
     __tablename__ = 'collection'
@@ -17,19 +13,19 @@ class Collection(Base):
         {'comment': 'Collections de flux RSS (personnelles ou partagées)'}
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    nom: Mapped[str] = mapped_column(String(255))
-    proprietaire_id: Mapped[int] = mapped_column(Integer)
-    description: Mapped[Optional[str]] = mapped_column(Text)
-    est_partagee: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text('false'))
-    cree_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
-    modifie_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    id = Column(Integer, primary_key=True)
+    nom = Column(String(255), nullable=False)
+    proprietaire_id = Column(Integer, nullable=False)
+    description = Column(Text)
+    est_partagee = Column(Boolean, server_default=text('false'))
+    cree_le = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    modifie_le = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
 
-    proprietaire: Mapped['Utilisateur'] = relationship('Utilisateur', back_populates='collection')
-    collection_flux: Mapped[List['CollectionFlux']] = relationship('CollectionFlux', back_populates='collection')
-    commentaire_article: Mapped[List['CommentaireArticle']] = relationship('CommentaireArticle', back_populates='collection')
-    membre_collection: Mapped[List['MembreCollection']] = relationship('MembreCollection', back_populates='collection')
-    message_collection: Mapped[List['MessageCollection']] = relationship('MessageCollection', back_populates='collection')
+    proprietaire = relationship('Utilisateur', back_populates='collection')
+    collection_flux = relationship('CollectionFlux', back_populates='collection')
+    commentaire_article = relationship('CommentaireArticle', back_populates='collection')
+    membre_collection = relationship('MembreCollection', back_populates='collection')
+    message_collection = relationship('MessageCollection', back_populates='collection')
 
 class CollectionFlux(Base):
     __tablename__ = 'collection_flux'
@@ -43,15 +39,15 @@ class CollectionFlux(Base):
         Index('idx_collection_flux_flux', 'flux_id')
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    collection_id: Mapped[int] = mapped_column(Integer)
-    flux_id: Mapped[int] = mapped_column(Integer)
-    ajoute_par_utilisateur_id: Mapped[int] = mapped_column(Integer)
-    ajoute_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    id = Column(Integer, primary_key=True)
+    collection_id = Column(Integer, nullable=False)
+    flux_id = Column(Integer, nullable=False)
+    ajoute_par_utilisateur_id = Column(Integer, nullable=False)
+    ajoute_le = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
 
-    ajoute_par_utilisateur: Mapped['Utilisateur'] = relationship('Utilisateur', back_populates='collection_flux')
-    collection: Mapped['Collection'] = relationship('Collection', back_populates='collection_flux')
-    flux: Mapped['FluxRss'] = relationship('FluxRss', back_populates='collection_flux')
+    ajoute_par_utilisateur = relationship('Utilisateur', back_populates='collection_flux')
+    collection = relationship('Collection', back_populates='collection_flux')
+    flux = relationship('FluxRss', back_populates='collection_flux')
 
 class MembreCollection(Base):
     __tablename__ = 'membre_collection'
@@ -65,16 +61,16 @@ class MembreCollection(Base):
         {'comment': 'Membres des collections avec leurs permissions'}
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    collection_id: Mapped[int] = mapped_column(Integer)
-    utilisateur_id: Mapped[int] = mapped_column(Integer)
-    role: Mapped[Optional[str]] = mapped_column(Enum('proprietaire', 'administrateur', 'moderateur', 'membre', name='role_membre'), server_default=text("'membre'::role_membre"))
-    peut_ajouter_flux: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text('true'))
-    peut_lire: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text('true'))
-    peut_commenter: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text('true'))
-    peut_modifier: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text('false'))
-    peut_supprimer: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text('false'))
-    rejoint_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    id = Column(Integer, primary_key=True)
+    collection_id = Column(Integer, nullable=False)
+    utilisateur_id = Column(Integer, nullable=False)
+    role = Column(Enum('proprietaire', 'administrateur', 'moderateur', 'membre', name='role_membre'), server_default=text("'membre'::role_membre"))
+    peut_ajouter_flux = Column(Boolean, server_default=text('true'))
+    peut_lire = Column(Boolean, server_default=text('true'))
+    peut_commenter = Column(Boolean, server_default=text('true'))
+    peut_modifier = Column(Boolean, server_default=text('false'))
+    peut_supprimer = Column(Boolean, server_default=text('false'))
+    rejoint_le = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
 
-    collection: Mapped['Collection'] = relationship('Collection', back_populates='membre_collection')
-    utilisateur: Mapped['Utilisateur'] = relationship('Utilisateur', back_populates='membre_collection')
+    collection = relationship('Collection', back_populates='membre_collection')
+    utilisateur = relationship('Utilisateur', back_populates='membre_collection')

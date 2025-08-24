@@ -1,9 +1,7 @@
 from typing import Optional
 from sqlalchemy import Column, DateTime, Enum, ForeignKeyConstraint, Integer, String, Index, text, PrimaryKeyConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-import datetime
+from sqlalchemy.orm import relationship
 from .base import Base
-from .user import Utilisateur
 
 class JournalImport(Base):
     __tablename__ = 'journal_import'
@@ -14,14 +12,14 @@ class JournalImport(Base):
         Index('idx_import_utilisateur', 'utilisateur_id')
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    utilisateur_id: Mapped[int] = mapped_column(Integer)
-    format: Mapped[str] = mapped_column(Enum('OPML', 'JSON', 'CSV', name='format_export_import'))
-    nom_fichier: Mapped[str] = mapped_column(String(255))
-    flux_importes: Mapped[Optional[int]] = mapped_column(Integer, server_default=text('0'))
-    cree_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    id = Column(Integer, primary_key=True)
+    utilisateur_id = Column(Integer, nullable=False)
+    format = Column(Enum('OPML', 'JSON', 'CSV', name='format_export_import'), nullable=False)
+    nom_fichier = Column(String(255), nullable=False)
+    flux_importes = Column(Integer, server_default=text('0'))
+    cree_le = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
 
-    utilisateur: Mapped['Utilisateur'] = relationship('Utilisateur', back_populates='journal_import')
+    utilisateur = relationship('Utilisateur', back_populates='journal_import')
 
 class JournalExport(Base):
     __tablename__ = 'journal_export'
@@ -32,10 +30,10 @@ class JournalExport(Base):
         Index('idx_export_utilisateur', 'utilisateur_id')
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    utilisateur_id: Mapped[int] = mapped_column(Integer)
-    format: Mapped[str] = mapped_column(Enum('OPML', 'JSON', 'CSV', name='format_export_import'))
-    nom_fichier: Mapped[str] = mapped_column(String(255))
-    cree_le: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    id = Column(Integer, primary_key=True)
+    utilisateur_id = Column(Integer, nullable=False)
+    format = Column(Enum('OPML', 'JSON', 'CSV', name='format_export_import'), nullable=False)
+    nom_fichier = Column(String(255), nullable=False)
+    cree_le = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
 
-    utilisateur: Mapped['Utilisateur'] = relationship('Utilisateur', back_populates='journal_export')
+    utilisateur = relationship('Utilisateur', back_populates='journal_export')
