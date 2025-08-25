@@ -1,6 +1,7 @@
 # routers/rss_router.py
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.orm import Session
+from fastapi.responses import PlainTextResponse
 from typing import List, Optional
 from datetime import datetime
 
@@ -389,7 +390,7 @@ async def import_opml(
             detail=f"Erreur lors de l'import OPML: {str(e)}"
         )
 
-@router.get("/flux/export-opml", response_class=str)
+@router.get("/flux/export-opml", response_class=PlainTextResponse)
 async def export_opml(
     current_user = Depends(get_current_user),
     db: Session = Depends(get_db)
