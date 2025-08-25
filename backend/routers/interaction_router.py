@@ -1,5 +1,5 @@
 # routers/interaction_router.py
-from fastapi import APIRouter, Depends, HTTPException, status, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
@@ -9,20 +9,15 @@ from dtos.interaction_dto import (
     CommentUpdateDTO,
     CommentResponseDTO,
     MessageCreateDTO,
-    MessageResponseDTO,
-    NotificationDTO
+    MessageResponseDTO
 )
 from dtos.pagination_dto import PaginationParamsDTO, PaginatedResponseDTO
 from business.interaction_business import InteractionBusiness
 from business.collection_business import CollectionBusiness
 from routers.user_router import get_current_user
 from core.database import get_db
-from core.websocket_manager import ConnectionManager
 
 router = APIRouter(prefix="/api/interactions", tags=["Interactions"])
-
-# Gestionnaire WebSocket pour le chat en temps réel
-manager = ConnectionManager()
 
 @router.post("/comments", response_model=CommentResponseDTO, status_code=status.HTTP_201_CREATED)
 async def create_comment(
@@ -217,14 +212,6 @@ async def send_message(
         user_id=current_user.id,
         message_data=message_data
     )
-    
-    # Diffuser le message via WebSocket aux membres connectés
-    await manager.broadcast_to_collection(
-        collection_id=message_data.collection_id,
-        message=message.dict()
-    )
-    
-    return message
 
 @router.get("/messages/collection/{collection_id}", response_model=PaginatedResponseDTO[MessageResponseDTO])
 async def get_collection_messages(
@@ -263,129 +250,6 @@ async def get_collection_messages(
         has_previous=pagination.page > 1
     )
 
-@router.get("/notifications", response_model=List[NotificationDTO])
-async def get_user_notifications(
-    only_unread: bool = Query(False),
-    limit: int = Query(20, ge=1, le=100),
-    current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Récupère les notifications de l'utilisateur"""
-    interaction_business = InteractionBusiness(db)
-    
-    notifications = interaction_business.get_user_notifications(
-        user_id=current_user.id,
-        only_unread=only_unread,
-        limit=limit
-    )
-    
-    return notifications
-
-@router.post("/notifications/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT)
-async def mark_notification_as_read(
-    notification_id: int,
-    current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Marque une notification comme lue"""
-    interaction_business = InteractionBusiness(db)
-    
-    # Vérifier que la notification appartient à l'utilisateur
-    notification = interaction_business.get_notification_by_id(notification_id)
-    
-    if not notification:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Notification non trouvée"
-        )
-    
-    if notification.utilisateur_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cette notification ne vous appartient pas"
-        )
-    
-    interaction_business.mark_notification_as_read(notification_id)
-    
-    return None
-
-@router.post("/notifications/read-all", status_code=status.HTTP_204_NO_CONTENT)
-async def mark_all_notifications_as_read(
-    current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Marque toutes les notifications comme lues"""
-    interaction_business = InteractionBusiness(db)
-    
-    interaction_business.mark_all_notifications_as_read(current_user.id)
-    
-    return None
-
-@router.get("/notifications/count", response_model=dict)
-async def get_unread_notifications_count(
-    current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Récupère le nombre de notifications non lues"""
-    interaction_business = InteractionBusiness(db)
-    
-    count = interaction_business.get_unread_notifications_count(current_user.id)
-    
-    return {"unread_count": count}
-
-# WebSocket pour le chat en temps réel
-@router.websocket("/ws/collection/{collection_id}")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    collection_id: int,
-    token: str = Query(...),
-    db: Session = Depends(get_db)
-):
-    """WebSocket pour le chat en temps réel d'une collection"""
-    try:
-        # Vérifier le token et récupérer l'utilisateur
-        from core.security import verify_token
-        payload = verify_token(token)
-        user_id = payload.get("user_id")
-        
-        if not user_id:
-            await websocket.close(code=1008, reason="Token invalide")
-            return
-        
-        # Vérifier l'accès à la collection
-        collection_business = CollectionBusiness(db)
-        if not collection_business.user_can_read_collection(user_id, collection_id):
-            await websocket.close(code=1008, reason="Accès refusé")
-            return
-        
-        # Accepter la connexion
-        await manager.connect(websocket, collection_id, user_id)
-        
-        try:
-            while True:
-                # Recevoir et diffuser les messages
-                data = await websocket.receive_text()
-                
-                # Créer le message dans la base de données
-                interaction_business = InteractionBusiness(db)
-                message_data = MessageCreateDTO(
-                    collection_id=collection_id,
-                    contenu=data
-                )
-                message = interaction_business.create_message(user_id, message_data)
-                
-                # Diffuser à tous les membres connectés
-                await manager.broadcast_to_collection(
-                    collection_id=collection_id,
-                    message=message.dict(),
-                    exclude_websocket=websocket
-                )
-                
-        except WebSocketDisconnect:
-            manager.disconnect(websocket, collection_id)
-            
-    except Exception as e:
-        await websocket.close(code=1011, reason=str(e))
 
 @router.get("/comments/my-comments", response_model=List[CommentResponseDTO])
 async def get_my_comments(

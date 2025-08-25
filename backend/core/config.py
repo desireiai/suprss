@@ -1,4 +1,5 @@
 # core/config.py
+import json
 from pydantic import BaseSettings, EmailStr, HttpUrl, PostgresDsn, validator
 from typing import List, Optional, Dict, Any
 import secrets
@@ -66,14 +67,29 @@ class Settings(BaseSettings):
     # Bcrypt
     BCRYPT_ROUNDS: int = 12
     
-    # CORS
-    CORS_ORIGINS: List[str] = [
-        "http://localhost",
-        "http://localhost:3000",
-        "http://localhost:8000",
-        "http://localhost:8080"
-    ]
-    ALLOWED_HOSTS: List[str] = ["*"]
+    # # CORS
+    # CORS_ORIGINS: List[str] = [
+    #     "http://localhost",
+    #     "http://localhost:3000",
+    #     "http://localhost:8000",
+    #     "http://localhost:8080"
+    # ]
+    # ALLOWED_HOSTS: List[str] = ["*"]
+
+    # @validator("CORS_ORIGINS", pre=True)
+    # def assemble_cors_origins(cls, v):
+    #     if isinstance(v, str):
+    #         # essaie de parser la chaîne comme JSON
+    #         try:
+    #             parsed = json.loads(v)
+    #             if isinstance(parsed, list):
+    #                 return parsed
+    #         except json.JSONDecodeError:
+    #             # Sinon, traite comme chaîne CSV
+    #             return [i.strip() for i in v.split(",")]
+    #     elif isinstance(v, list):
+    #         return v
+    #     raise ValueError("CORS_ORIGINS doit être une liste ou une chaîne JSON/virgules.")
     
     # Email
     SMTP_HOST: str = "smtp.gmail.com"

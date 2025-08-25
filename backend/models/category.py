@@ -1,6 +1,8 @@
 from sqlalchemy import Column, DateTime, ForeignKeyConstraint, Integer, String, UniqueConstraint, Index, text, PrimaryKeyConstraint
 from sqlalchemy.orm import relationship
-from .base import Base
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
 
 class Categorie(Base):
     __tablename__ = 'categorie'

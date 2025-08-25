@@ -20,6 +20,16 @@ from core.database import get_db
 
 router = APIRouter(prefix="/api/collections", tags=["Collections"])
 
+# Fonction helper pour la pagination
+def get_pagination_params(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200)
+) -> PaginationParamsDTO:
+    return PaginationParamsDTO(
+        page=page,
+        page_size=page_size
+    )
+
 @router.post("/", response_model=CollectionResponseDTO, status_code=status.HTTP_201_CREATED)
 async def create_collection(
     collection_data: CollectionCreateDTO,
@@ -39,7 +49,7 @@ async def create_collection(
 
 @router.get("/", response_model=PaginatedResponseDTO[CollectionResponseDTO])
 async def get_user_collections(
-    pagination: PaginationParamsDTO = Depends(),
+    pagination: PaginationParamsDTO = Depends(get_pagination_params),
     include_shared: bool = Query(True, description="Inclure les collections partagées"),
     only_owned: bool = Query(False, description="Uniquement mes collections"),
     current_user = Depends(get_current_user),
@@ -167,8 +177,8 @@ async def add_flux_to_collection(
 ):
     """Ajoute un flux à une collection"""
     collection_business = CollectionBusiness(db)
-    from business_models.rss_business import RSSBusiness
-    rss_business = RSSBusiness(db)
+    from business.rss_business import RssBusiness  # Import corrigé
+    rss_business = RssBusiness(db)
     
     # Vérifier la permission d'ajouter des flux
     if not collection_business.user_can_add_flux(current_user.id, collection_id):
@@ -187,7 +197,8 @@ async def add_flux_to_collection(
     # Ajouter le flux à la collection
     collection_business.add_flux_to_collection(
         collection_id,
-        flux_data.flux_id
+        flux_data.flux_id,
+        current_user.id
     )
     
     return None
@@ -236,7 +247,7 @@ async def add_member_to_collection(
     
     # Si invitation par email, vérifier que l'utilisateur existe
     if member_data.email:
-        from business_models.user_business import UserBusiness
+        from business.user_business import UserBusiness  # Import corrigé
         user_business = UserBusiness(db)
         invited_user = user_business.get_user_by_email(member_data.email)
         
@@ -366,7 +377,7 @@ async def get_collection_members(
 @router.post("/{collection_id}/toggle-sharing", response_model=CollectionResponseDTO)
 async def toggle_collection_sharing(
     collection_id: int,
-    is_shared: bool,
+    is_shared: bool = Query(..., description="Activer ou désactiver le partage"),
     current_user = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):

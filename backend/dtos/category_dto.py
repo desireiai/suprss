@@ -1,6 +1,6 @@
-# dto/category_dto.py
+# dtos/category_dto.py
 from pydantic import BaseModel, Field, validator
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 import re
 
@@ -19,13 +19,19 @@ class CategoryUpdateDTO(BaseModel):
     """DTO pour mettre à jour une catégorie"""
     nom: Optional[str] = Field(None, min_length=1, max_length=100)
     couleur: Optional[str] = Field(None, regex="^#[0-9A-Fa-f]{6}$")
+    
+    @validator('couleur')
+    def validate_color(cls, v):
+        if v is not None and not re.match(r'^#[0-9A-Fa-f]{6}$', v):
+            raise ValueError('Format de couleur invalide (utilisez #RRGGBB)')
+        return v
 
 class CategoryResponseDTO(BaseModel):
     """DTO pour la réponse d'une catégorie"""
     id: int
     nom: str
     couleur: str
-    nombre_flux: int
+    nombre_flux: int = 0
     cree_le: datetime
     
     class Config:
@@ -34,5 +40,5 @@ class CategoryResponseDTO(BaseModel):
 class CategoryFluxMoveDTO(BaseModel):
     """DTO pour déplacer un flux entre catégories"""
     flux_id: int
-    from_category_id: int
+    from_category_id: Optional[int] = None  # Optionnel comme dans le router
     to_category_id: int

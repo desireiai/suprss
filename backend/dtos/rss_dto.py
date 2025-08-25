@@ -1,6 +1,6 @@
-# dto/rss_dto.py
-from pydantic import BaseModel, HttpUrl, Field, validator
-from typing import Optional, List, Literal
+# dtos/rss_dto.py
+from pydantic import BaseModel, HttpUrl, Field
+from typing import Optional, List, Literal, Generic, TypeVar
 from datetime import datetime
 
 class FluxCreateDTO(BaseModel):
@@ -22,32 +22,30 @@ class FluxResponseDTO(BaseModel):
     id: int
     nom: str
     url: str
-    description: Optional[str]
+    description: Optional[str] = None
     frequence_maj_heures: int
     est_actif: bool
-    derniere_maj: Optional[datetime]
+    derniere_maj: Optional[datetime] = None
     nombre_articles: Optional[int] = 0
     cree_le: datetime
     
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 class ArticleResponseDTO(BaseModel):
     """DTO pour la réponse d'un article"""
     id: int
     titre: str
     lien: str
-    auteur: Optional[str]
-    resume: Optional[str]
-    contenu: Optional[str]
-    publie_le: Optional[datetime]
+    auteur: Optional[str] = None
+    resume: Optional[str] = None
+    contenu: Optional[str] = None
+    publie_le: Optional[datetime] = None
     flux_id: int
     flux_nom: str
     est_lu: bool = False
     est_favori: bool = False
     
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 class ArticleStatusUpdateDTO(BaseModel):
     """DTO pour mettre à jour le statut d'un article"""
@@ -70,3 +68,39 @@ class ArticleBulkActionDTO(BaseModel):
     """DTO pour les actions en masse sur les articles"""
     article_ids: List[int]
     action: Literal["mark_read", "mark_unread", "add_favorite", "remove_favorite"]
+
+# DTOs de pagination manquants utilisés dans le router
+class PaginationParamsDTO(BaseModel):
+    """DTO pour les paramètres de pagination"""
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=50, ge=1, le=200)
+    sort_by: Optional[str] = Field(default="date")
+    sort_order: Literal["asc", "desc"] = Field(default="desc")
+
+# Generic type pour les réponses paginées
+T = TypeVar('T')
+
+class PaginatedResponseDTO(BaseModel, Generic[T]):
+    """DTO pour les réponses paginées"""
+    items: List[T]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    has_next: bool
+    has_previous: bool
+
+# DTO pour la réponse d'import OPML
+class OPMLImportResponseDTO(BaseModel):
+    """DTO pour la réponse d'import OPML"""
+    message: str
+    imported_count: int
+
+# DTO pour les statistiques de flux
+class FluxStatsDTO(BaseModel):
+    """DTO pour les statistiques d'un flux"""
+    total_articles: int
+    articles_non_lus: int
+    articles_favoris: int
+    derniere_publication: Optional[datetime] = None
+    moyenne_articles_par_jour: Optional[float] = None

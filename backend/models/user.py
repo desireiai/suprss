@@ -1,7 +1,9 @@
 from typing import List, Optional
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, UniqueConstraint, Index, text, PrimaryKeyConstraint, ForeignKeyConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from .base import Base
+from sqlalchemy.orm import relationship
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
 
 class Utilisateur(Base):
     __tablename__ = 'utilisateur'

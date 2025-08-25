@@ -2,8 +2,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from typing import Optional
-from datetime import datetime, timedelta
 import jwt
 
 from dtos.user_dto import (
@@ -154,9 +152,11 @@ async def oauth2_login(
     user = user_business.get_or_create_oauth_user(
         provider=oauth_data.provider,
         email=user_info['email'],
+        provider_user_id=user_info.get('user_id', user_info['email']),
         nom_utilisateur=user_info.get('username'),
         prenom=user_info.get('given_name'),
-        nom=user_info.get('family_name')
+        nom=user_info.get('family_name'),
+        access_token=oauth_data.token
     )
     
     # Créer les tokens

@@ -1,7 +1,7 @@
 # main_minimal.py - Version ultra minimale pour tester
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import rss_router, category_router, collection_router, interaction_router, search_router
+from routers import search_router, user_router, rss_router, category_router, collection_router, interaction_router
 
 app = FastAPI(
     title="SUPRSS API - Test",
@@ -19,12 +19,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-#app.include_router(user_router)
+app.include_router(user_router)
 app.include_router(rss_router)
 app.include_router(category_router)
-#app.include_router(collection_router)
-#app.include_router(interaction_router)
-#app.include_router(search_router)
+app.include_router(collection_router)
+app.include_router(interaction_router)
+app.include_router(search_router)
 
 @app.get("/")
 def root():

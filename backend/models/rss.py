@@ -1,7 +1,8 @@
 from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, ForeignKeyConstraint, Integer, String, Text, UniqueConstraint, Index, text, PrimaryKeyConstraint
 from sqlalchemy.orm import relationship
-import datetime
-from .base import Base
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
 
 class FluxRss(Base):
     __tablename__ = 'flux_rss'

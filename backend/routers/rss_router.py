@@ -166,9 +166,22 @@ async def refresh_flux(
     
     return {"message": "Mise à jour en cours"}
 
+def get_pagination_params(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    sort_by: Optional[str] = Query("date"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$")
+) -> PaginationParamsDTO:
+    return PaginationParamsDTO(
+        page=page,
+        page_size=page_size,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
+
 @router.get("/articles", response_model=PaginatedResponseDTO[ArticleResponseDTO])
 async def get_articles(
-    pagination: PaginationParamsDTO = Depends(),
+    pagination: PaginationParamsDTO = Depends(get_pagination_params),
     categorie_id: Optional[int] = Query(None),
     flux_id: Optional[int] = Query(None),
     only_unread: bool = Query(False),
@@ -387,3 +400,4 @@ async def export_opml(
     opml_content = rss_business.export_to_opml(current_user.id)
     
     return opml_content
+

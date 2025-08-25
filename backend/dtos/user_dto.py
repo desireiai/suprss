@@ -1,14 +1,16 @@
-# dto/user_dto.py
+# dtos/user_dto.py
 from pydantic import BaseModel, EmailStr, Field, validator
-from typing import Optional, Dict, Any
+from typing import Optional
 from datetime import datetime
 from enum import Enum
+
 
 class TaillePolicEnum(str, Enum):
     SMALL = "small"
     MEDIUM = "medium"
     LARGE = "large"
     X_LARGE = "x-large"
+
 
 class UserRegisterDTO(BaseModel):
     """DTO pour l'inscription d'un utilisateur"""
@@ -17,49 +19,74 @@ class UserRegisterDTO(BaseModel):
     mot_de_passe: str = Field(..., min_length=8)
     prenom: Optional[str] = Field(None, max_length=100)
     nom: Optional[str] = Field(None, max_length=100)
-    
-    @validator('mot_de_passe')
+
+    @validator("mot_de_passe")
     def validate_password_strength(cls, v):
         if len(v) < 8:
-            raise ValueError('Le mot de passe doit contenir au moins 8 caractères')
+            raise ValueError("Le mot de passe doit contenir au moins 8 caractères")
         return v
+
 
 class UserLoginDTO(BaseModel):
     """DTO pour la connexion"""
     email: EmailStr
     mot_de_passe: str
 
+
 class OAuth2LoginDTO(BaseModel):
     """DTO pour la connexion OAuth2"""
     provider: str = Field(..., regex="^(google|microsoft|github)$")
     token: str
+    # Ces champs seront remplis par la validation du token
     email: Optional[EmailStr] = None
+    provider_user_id: Optional[str] = None
+    nom_utilisateur: Optional[str] = None
+    prenom: Optional[str] = None
+    nom: Optional[str] = None
+
 
 class UserUpdateDTO(BaseModel):
     """DTO pour la mise à jour du profil"""
-    nom_utilisateur: Optional[str] = Field(None, min_length=3, max_length=50)
+    nom_utilisateur: Optional[str] = Field(None, min_length=3, max_length=50, regex="^[a-zA-Z0-9_-]+$")
     prenom: Optional[str] = Field(None, max_length=100)
     nom: Optional[str] = Field(None, max_length=100)
     email: Optional[EmailStr] = None
+
 
 class UserPreferencesDTO(BaseModel):
     """DTO pour les préférences utilisateur"""
     mode_sombre: Optional[bool] = None
     taille_police: Optional[TaillePolicEnum] = None
 
+
 class PasswordChangeDTO(BaseModel):
     """DTO pour le changement de mot de passe"""
     ancien_mot_de_passe: str
     nouveau_mot_de_passe: str = Field(..., min_length=8)
+    
+    @validator("nouveau_mot_de_passe")
+    def validate_new_password_strength(cls, v):
+        if len(v) < 8:
+            raise ValueError("Le nouveau mot de passe doit contenir au moins 8 caractères")
+        return v
+
 
 class PasswordResetRequestDTO(BaseModel):
     """DTO pour la demande de réinitialisation"""
     email: EmailStr
 
+
 class PasswordResetDTO(BaseModel):
     """DTO pour la réinitialisation du mot de passe"""
     token: str
     nouveau_mot_de_passe: str = Field(..., min_length=8)
+
+    @validator("nouveau_mot_de_passe")
+    def validate_password_strength(cls, v):
+        if len(v) < 8:
+            raise ValueError("Le mot de passe doit contenir au moins 8 caractères")
+        return v
+
 
 class UserResponseDTO(BaseModel):
     """DTO pour la réponse utilisateur"""
@@ -74,9 +101,10 @@ class UserResponseDTO(BaseModel):
     taille_police: str
     derniere_connexion: Optional[datetime]
     cree_le: datetime
-    
+
     class Config:
-        orm_mode = True
+        orm_mode = True   # <- équivalent de model_config dans Pydantic v2
+
 
 class UserStatsDTO(BaseModel):
     """DTO pour les statistiques utilisateur"""
@@ -86,10 +114,17 @@ class UserStatsDTO(BaseModel):
     total_collections: int
     total_commentaires: int
 
+
 class TokenResponseDTO(BaseModel):
     """DTO pour la réponse d'authentification"""
     access_token: str
-    refresh_token: Optional[str]
+    refresh_token: Optional[str] = None
     token_type: str = "Bearer"
     expires_in: int
     user: UserResponseDTO
+
+
+# DTO pour la suppression de compte
+class DeleteAccountDTO(BaseModel):
+    """DTO pour la suppression de compte"""
+    mot_de_passe: str

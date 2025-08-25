@@ -1,4 +1,4 @@
-# dto/interaction_dto.py
+# dtos/interaction_dto.py
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
@@ -22,15 +22,16 @@ class CommentResponseDTO(BaseModel):
     utilisateur_nom: str
     collection_id: int
     contenu: str
-    commentaire_parent_id: Optional[int]
-    est_modifie: bool
+    commentaire_parent_id: Optional[int] = None
+    est_modifie: bool = False
     cree_le: datetime
-    modifie_le: Optional[datetime]
+    modifie_le: Optional[datetime] = None
     reponses: Optional[List['CommentResponseDTO']] = []
     
     class Config:
         orm_mode = True
 
+# Mise à jour des références circulaires
 CommentResponseDTO.update_forward_refs()
 
 class MessageCreateDTO(BaseModel):
@@ -45,22 +46,9 @@ class MessageResponseDTO(BaseModel):
     utilisateur_id: int
     utilisateur_nom: str
     contenu: str
-    est_modifie: bool
+    est_modifie: bool = False
     cree_le: datetime
-    modifie_le: Optional[datetime]
-    
-    class Config:
-        orm_mode = True
-
-class NotificationDTO(BaseModel):
-    """DTO pour les notifications"""
-    id: int
-    type: str  # 'comment', 'message', 'invitation', 'new_article'
-    titre: str
-    contenu: str
-    lien: Optional[str]
-    est_lu: bool
-    cree_le: datetime
+    modifie_le: Optional[datetime] = None
     
     class Config:
         orm_mode = True

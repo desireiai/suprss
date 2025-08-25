@@ -1,5 +1,5 @@
 # Modèles utilisateur
-from .user import Utilisateur, UtilisateurOAuth
+from .user import Utilisateur, UtilisateurOauth
 
 # Modèles RSS
 from .rss import FluxRss, Article
@@ -25,7 +25,7 @@ from .views import t_vue_articles_utilisateur, t_vue_collections_detaillees
 
 __all__ = [
     'Utilisateur',
-    'UtilisateurOAuth',
+    'UtilisateurOauth',
     'FluxRss',
     'Article',
     'Collection',

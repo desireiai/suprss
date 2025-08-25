@@ -1,5 +1,7 @@
 from sqlalchemy import BigInteger, Boolean, Column, DateTime, Integer, String, Table, Text
-from .base import Base
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
 
 t_vue_articles_utilisateur = Table(
     'vue_articles_utilisateur', Base.metadata,

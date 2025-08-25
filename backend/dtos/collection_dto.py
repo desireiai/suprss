@@ -1,11 +1,16 @@
-# dto/collection_dto.py
-from pydantic import BaseModel, Field
+# dtos/collection_dto.py
+from pydantic import BaseModel, Field, validator
 from typing import Optional, List, Dict
 from enum import Enum
 from datetime import datetime
 from pydantic.networks import EmailStr
-from .rss_dto import FluxResponseDTO, MemberRoleEnum
-from pydantic import validator
+
+class MemberRoleEnum(str, Enum):
+    PROPRIETAIRE = "proprietaire"
+    ADMINISTRATEUR = "administrateur"
+    MODERATEUR = "moderateur"
+    MEMBRE = "membre"
+
 class CollectionCreateDTO(BaseModel):
     """DTO pour créer une collection"""
     nom: str = Field(..., min_length=1, max_length=255)
@@ -20,12 +25,6 @@ class CollectionUpdateDTO(BaseModel):
 class CollectionFluxAddDTO(BaseModel):
     """DTO pour ajouter un flux à une collection"""
     flux_id: int
-
-class MemberRoleEnum(str, Enum):
-    PROPRIETAIRE = "proprietaire"
-    ADMINISTRATEUR = "administrateur"
-    MODERATEUR = "moderateur"
-    MEMBRE = "membre"
 
 class CollectionMemberAddDTO(BaseModel):
     """DTO pour ajouter un membre à une collection"""
@@ -67,21 +66,34 @@ class CollectionResponseDTO(BaseModel):
     """DTO pour la réponse d'une collection"""
     id: int
     nom: str
-    description: Optional[str]
+    description: Optional[str] = None
     est_partagee: bool
     proprietaire_id: int
     proprietaire_nom: str
     nombre_flux: int
     nombre_membres: int
-    mon_role: Optional[str]
-    mes_permissions: Optional[Dict[str, bool]]
+    mon_role: Optional[str] = None
+    mes_permissions: Optional[Dict[str, bool]] = None
     cree_le: datetime
-    modifie_le: Optional[datetime]
+    modifie_le: Optional[datetime] = None
+    
+    class Config:
+        orm_mode = True
+
+# DTO simplifié pour les flux dans les détails de collection
+class CollectionFluxResponseDTO(BaseModel):
+    """DTO pour un flux dans une collection"""
+    id: int
+    nom: str
+    url: str
+    description: Optional[str] = None
+    ajoute_par: str
+    ajoute_le: datetime
     
     class Config:
         orm_mode = True
 
 class CollectionDetailResponseDTO(CollectionResponseDTO):
     """DTO détaillé pour une collection"""
-    flux: List[FluxResponseDTO]
-    membres: List[CollectionMemberResponseDTO]
+    flux: List[CollectionFluxResponseDTO] = []
+    membres: List[CollectionMemberResponseDTO] = []

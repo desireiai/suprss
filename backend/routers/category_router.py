@@ -1,7 +1,7 @@
 # routers/category_router.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from dtos.category_dto import (
     CategoryCreateDTO,
@@ -49,46 +49,7 @@ async def get_user_categories(
     
     categories = category_business.get_user_categories(current_user.id)
     
-    # Ajouter le nombre de flux pour chaque catégorie
-    for category in categories:
-        category.nombre_flux = category_business.get_category_flux_count(
-            current_user.id,
-            category.id
-        )
-    
     return categories
-
-# @router.get("/{category_id}", response_model=CategoryResponseDTO)
-# async def get_category_detail(
-#     category_id: int,
-#     current_user = Depends(get_current_user),
-#     db: Session = Depends(get_db)
-# ):
-#     """Récupère les détails d'une catégorie"""
-#     category_business = CategoryBusiness(db)
-    
-#     category = category_business.get_category_by_id(category_id)
-    
-#     if not category:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail="Catégorie non trouvée"
-#         )
-    
-#     # Vérifier que la catégorie appartient à l'utilisateur
-#     if not category_business.user_owns_category(current_user.id, category_id):
-#         raise HTTPException(
-#             status_code=status.HTTP_403_FORBIDDEN,
-#             detail="Vous n'avez pas accès à cette catégorie"
-#         )
-    
-#     # Ajouter le nombre de flux
-#     category.nombre_flux = category_business.get_category_flux_count(
-#         current_user.id,
-#         category.id
-#     )
-    
-#     return category
 
 @router.put("/{category_id}", response_model=CategoryResponseDTO)
 async def update_category(
@@ -111,7 +72,7 @@ async def update_category(
     if category_business.is_default_category(category_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La catégorie 'Non classé' ne peut pas être modifiée"
+            detail="La catégorie par défaut ne peut pas être modifiée"
         )
     
     # Vérifier l'unicité du nouveau nom si changement
@@ -132,18 +93,12 @@ async def update_category(
         category_update
     )
     
-    # Ajouter le nombre de flux
-    updated_category.nombre_flux = category_business.get_category_flux_count(
-        current_user.id,
-        updated_category.id
-    )
-    
     return updated_category
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_category(
     category_id: int,
-    move_to_category_id: int = None,
+    move_to_category_id: Optional[int] = Query(None),
     current_user = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -165,7 +120,7 @@ async def delete_category(
     if category_business.is_default_category(category_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La catégorie 'Non classé' ne peut pas être supprimée"
+            detail="La catégorie par défaut ne peut pas être supprimée"
         )
     
     # Si une catégorie de destination est fournie, vérifier qu'elle appartient à l'utilisateur
@@ -185,92 +140,91 @@ async def delete_category(
     
     return None
 
-# @router.post("/move-flux", status_code=status.HTTP_204_NO_CONTENT)
-# async def move_flux_between_categories(
-#     move_data: CategoryFluxMoveDTO,
-#     current_user = Depends(get_current_user),
-#     db: Session = Depends(get_db)
-# ):
-#     """Déplace un flux d'une catégorie à une autre"""
-#     category_business = CategoryBusiness(db)
-#     from business_models.rss_business import RSSBusiness
-#     rss_business = RSSBusiness(db)
+@router.post("/move-flux", status_code=status.HTTP_204_NO_CONTENT)
+async def move_flux_between_categories(
+    move_data: CategoryFluxMoveDTO,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Déplace un flux d'une catégorie à une autre"""
+    category_business = CategoryBusiness(db)
+    from business.rss_business import RssBusiness  # Import corrigé
+    rss_business = RssBusiness(db)
     
-#     # Vérifier que le flux appartient à l'utilisateur
-#     if not rss_business.user_owns_flux(current_user.id, move_data.flux_id):
-#         raise HTTPException(
-#             status_code=status.HTTP_403_FORBIDDEN,
-#             detail="Vous n'avez pas accès à ce flux"
-#         )
+    # Vérifier que le flux appartient à l'utilisateur
+    if not rss_business.user_owns_flux(current_user.id, move_data.flux_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Vous n'avez pas accès à ce flux"
+        )
     
-#     # Vérifier les catégories source et destination
-#     if move_data.from_category_id:
-#         if not category_business.user_owns_category(current_user.id, move_data.from_category_id):
-#             raise HTTPException(
-#                 status_code=status.HTTP_403_FORBIDDEN,
-#                 detail="La catégorie source ne vous appartient pas"
-#             )
+    # Vérifier les catégories source et destination
+    if move_data.from_category_id:
+        if not category_business.user_owns_category(current_user.id, move_data.from_category_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="La catégorie source ne vous appartient pas"
+            )
     
-#     if not category_business.user_owns_category(current_user.id, move_data.to_category_id):
-#         raise HTTPException(
-#             status_code=status.HTTP_403_FORBIDDEN,
-#             detail="La catégorie de destination ne vous appartient pas"
-#         )
+    if not category_business.user_owns_category(current_user.id, move_data.to_category_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="La catégorie de destination ne vous appartient pas"
+        )
     
-#     # Déplacer le flux
-#     category_business.move_flux_to_category(
-#         flux_id=move_data.flux_id,
-#         from_category_id=move_data.from_category_id,
-#         to_category_id=move_data.to_category_id
-#     )
+    # Déplacer le flux
+    category_business.move_flux_to_category(
+        flux_id=move_data.flux_id,
+        from_category_id=move_data.from_category_id,
+        to_category_id=move_data.to_category_id
+    )
     
-#     return None
+    return None
 
-# """ @router.get("/{category_id}/flux", response_model=List[dict])
-# async def get_category_flux(
-#     category_id: int,
-#     current_user = Depends(get_current_user),
-#     db: Session = Depends(get_db)
-# ):
-#     """Récupère tous les flux d'une catégorie"""
-#     category_business = CategoryBusiness(db)
-#     from business_models.rss_business import RSSBusiness
-#     rss_business = RSSBusiness(db)
+@router.get("/{category_id}/flux")
+async def get_category_flux(
+    category_id: int,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Récupère tous les flux d'une catégorie"""
+    category_business = CategoryBusiness(db)
+    from business.rss_business import RssBusiness  # Import corrigé
+    rss_business = RssBusiness(db)
     
-#     # Vérifier que la catégorie appartient à l'utilisateur
-#     if not category_business.user_owns_category(current_user.id, category_id):
-#         raise HTTPException(
-#             status_code=status.HTTP_403_FORBIDDEN,
-#             detail="Vous n'avez pas accès à cette catégorie"
-#         )
+    # Vérifier que la catégorie appartient à l'utilisateur
+    if not category_business.user_owns_category(current_user.id, category_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Vous n'avez pas accès à cette catégorie"
+        )
     
-#     # Récupérer les flux de la catégorie
-#     flux_list = rss_business.get_user_flux(
-#         user_id=current_user.id,
-#         categorie_id=category_id
-#     )
+    # Récupérer les flux de la catégorie
+    flux_list = rss_business.get_user_flux(
+        user_id=current_user.id,
+        categorie_id=category_id
+    )
     
-#     return flux_list """
+    return flux_list
 
-# """ @router.post("/initialize-default", response_model=CategoryResponseDTO)
-# async def initialize_default_category(
-#     current_user = Depends(get_current_user),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Initialise la catégorie par défaut pour un nouvel utilisateur.
-#     Cette route est appelée automatiquement lors de la première connexion.
-#     """
-#     category_business = CategoryBusiness(db)
+@router.post("/initialize-default", response_model=CategoryResponseDTO)
+async def initialize_default_category(
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Initialise la catégorie par défaut pour un nouvel utilisateur.
+    Cette route est appelée automatiquement lors de la première connexion.
+    """
+    category_business = CategoryBusiness(db)
     
-#     # Vérifier si l'utilisateur a déjà une catégorie par défaut
-#     default_category = category_business.get_user_default_category(current_user.id)
+    # Vérifier si l'utilisateur a déjà une catégorie par défaut
+    default_category = category_business.get_user_default_category(current_user.id)
     
-#     if default_category:
-#         return default_category
+    if default_category:
+        return default_category
     
-#     # Créer la catégorie par défaut
-#     default_category = category_business.create_default_category(current_user.id)
+    # Créer la catégorie par défaut
+    default_category = category_business.create_default_category(current_user.id)
     
-#     return default_category """
-
+    return default_category

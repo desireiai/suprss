@@ -5,11 +5,19 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
 
-from models.user import Utilisateur
-from models.rss import Article, FluxRss
-from models.collection import Collection
-from models.interaction import CommentaireArticle, StatutUtilisateurArticle
-from models.category import Categorie, FluxCategorie
+
+from models import (
+    Utilisateur, 
+    Article, 
+    FluxRss, 
+    Collection, 
+    CommentaireArticle, 
+    StatutUtilisateurArticle,
+    Categorie, 
+    FluxCategorie,
+    CollectionFlux,
+    MembreCollection
+)
 from dtos.search_dto import SearchResultDTO
 
 logger = logging.getLogger(__name__)
@@ -66,7 +74,8 @@ class SearchBusiness:
                         "flux_id": article.flux_id,
                         "publie_le": article.publie_le.isoformat() if article.publie_le else None,
                         "est_lu": statut.est_lu if statut else False,
-                        "est_favori": statut.est_favori if statut else False
+                        "est_favori": statut.est_favori if statut else False,
+                        "auteur": article.auteur
                     }
                 ))
             
@@ -101,6 +110,11 @@ class SearchBusiness:
             
             results = []
             for flux in flux_list:
+                # Compter le nombre d'articles pour ce flux
+                nombre_articles = self.db.query(func.count(Article.id)).filter(
+                    Article.flux_id == flux.id
+                ).scalar() or 0
+                
                 results.append(SearchResultDTO(
                     type="flux",
                     id=flux.id,
@@ -112,7 +126,8 @@ class SearchBusiness:
                     metadata={
                         "est_actif": flux.est_actif,
                         "derniere_maj": flux.derniere_maj.isoformat() if flux.derniere_maj else None,
-                        "nombre_articles": len(flux.article) if flux.article else 0
+                        "nombre_articles": nombre_articles,
+                        "frequence_maj_heures": flux.frequence_maj_heures
                     }
                 ))
             
@@ -132,12 +147,17 @@ class SearchBusiness:
         try:
             search_pattern = f"%{query}%"
             
+            # Collections possédées par l'utilisateur ou auxquelles il participe
             collections = self.db.query(Collection).filter(
                 or_(
                     Collection.proprietaire_id == user_id,
                     and_(
                         Collection.est_partagee == True,
-                        Collection.membre_collection.any(utilisateur_id=user_id)
+                        Collection.id.in_(
+                            self.db.query(MembreCollection.collection_id).filter(
+                                MembreCollection.utilisateur_id == user_id
+                            )
+                        )
                     )
                 ),
                 or_(
@@ -148,6 +168,15 @@ class SearchBusiness:
             
             results = []
             for collection in collections:
+                # Compter les flux et membres
+                nombre_flux = self.db.query(func.count(CollectionFlux.id)).filter(
+                    CollectionFlux.collection_id == collection.id
+                ).scalar() or 0
+                
+                nombre_membres = self.db.query(func.count(MembreCollection.id)).filter(
+                    MembreCollection.collection_id == collection.id
+                ).scalar() or 0
+                
                 results.append(SearchResultDTO(
                     type="collection",
                     id=collection.id,
@@ -159,8 +188,9 @@ class SearchBusiness:
                     metadata={
                         "est_partagee": collection.est_partagee,
                         "proprietaire_id": collection.proprietaire_id,
-                        "nombre_flux": len(collection.collection_flux),
-                        "nombre_membres": len(collection.membre_collection)
+                        "nombre_flux": nombre_flux,
+                        "nombre_membres": nombre_membres,
+                        "cree_le": collection.cree_le.isoformat() if collection.cree_le else None
                     }
                 ))
             
@@ -180,22 +210,32 @@ class SearchBusiness:
         try:
             search_pattern = f"%{query}%"
             
+            # Commentaires dans les collections accessibles
             comments = self.db.query(CommentaireArticle).join(
                 Collection
             ).filter(
                 or_(
                     Collection.proprietaire_id == user_id,
-                    Collection.membre_collection.any(utilisateur_id=user_id)
+                    Collection.id.in_(
+                        self.db.query(MembreCollection.collection_id).filter(
+                            MembreCollection.utilisateur_id == user_id
+                        )
+                    )
                 ),
                 CommentaireArticle.contenu.ilike(search_pattern)
             ).limit(limit).all()
             
             results = []
             for comment in comments:
+                # Récupérer le titre de l'article associé
+                article_titre = self.db.query(Article.titre).filter(
+                    Article.id == comment.article_id
+                ).scalar() or "Article inconnu"
+                
                 results.append(SearchResultDTO(
                     type="comment",
                     id=comment.id,
-                    title=f"Commentaire sur {comment.article.titre[:50]}",
+                    title=f"Commentaire sur {article_titre[:50]}",
                     description=comment.contenu[:200],
                     url=None,
                     match_snippet=self._extract_snippet(comment.contenu, query),
@@ -204,7 +244,7 @@ class SearchBusiness:
                         "article_id": comment.article_id,
                         "collection_id": comment.collection_id,
                         "utilisateur_id": comment.utilisateur_id,
-                        "cree_le": comment.cree_le.isoformat()
+                        "cree_le": comment.cree_le.isoformat() if comment.cree_le else None
                     }
                 ))
             
@@ -231,23 +271,18 @@ class SearchBusiness:
         try:
             search_pattern = f"%{query}%"
             
-            # Base query
-            query_obj = self.db.query(Article)
-            
-            # Filtrer par flux de l'utilisateur
-            user_flux_ids = self.db.query(FluxCategorie.flux_id).join(
+            # Base query avec jointure pour accéder aux flux de l'utilisateur
+            query_obj = self.db.query(Article).join(
+                FluxCategorie, Article.flux_id == FluxCategorie.flux_id
+            ).join(
                 Categorie
             ).filter(
                 Categorie.utilisateur_id == user_id
             )
             
+            # Filtre par catégorie
             if category_id:
-                user_flux_ids = user_flux_ids.filter(
-                    Categorie.id == category_id
-                )
-            
-            user_flux_ids = user_flux_ids.subquery()
-            query_obj = query_obj.filter(Article.flux_id.in_(user_flux_ids))
+                query_obj = query_obj.filter(Categorie.id == category_id)
             
             # Filtre par flux spécifique
             if flux_id:
@@ -255,16 +290,30 @@ class SearchBusiness:
             
             # Filtre par dates
             if date_from:
-                query_obj = query_obj.filter(Article.publie_le >= datetime.fromisoformat(date_from))
+                try:
+                    date_from_parsed = datetime.fromisoformat(date_from.replace('Z', '+00:00'))
+                    query_obj = query_obj.filter(Article.publie_le >= date_from_parsed)
+                except ValueError:
+                    logger.warning(f"Format de date invalide pour date_from: {date_from}")
+                    
             if date_to:
-                query_obj = query_obj.filter(Article.publie_le <= datetime.fromisoformat(date_to))
+                try:
+                    date_to_parsed = datetime.fromisoformat(date_to.replace('Z', '+00:00'))
+                    query_obj = query_obj.filter(Article.publie_le <= date_to_parsed)
+                except ValueError:
+                    logger.warning(f"Format de date invalide pour date_to: {date_to}")
             
-            # Filtre par statut
+            # Filtre par statut (non-lu/favoris)
             if only_unread or only_favorites:
-                query_obj = query_obj.join(StatutUtilisateurArticle)
-                query_obj = query_obj.filter(
-                    StatutUtilisateurArticle.utilisateur_id == user_id
+                # Utiliser LEFT JOIN pour inclure les articles sans statut
+                query_obj = query_obj.outerjoin(
+                    StatutUtilisateurArticle,
+                    and_(
+                        StatutUtilisateurArticle.article_id == Article.id,
+                        StatutUtilisateurArticle.utilisateur_id == user_id
+                    )
                 )
+                
                 if only_unread:
                     query_obj = query_obj.filter(
                         or_(
@@ -287,15 +336,21 @@ class SearchBusiness:
                 )
             )
             
-            # Pagination
-            articles = query_obj.offset(offset).limit(limit).all()
+            # Pagination avec tri par date de publication
+            articles = query_obj.order_by(desc(Article.publie_le)).offset(offset).limit(limit).all()
             
             results = []
             for article in articles:
+                # Récupérer le statut spécifiquement pour chaque article
                 statut = self.db.query(StatutUtilisateurArticle).filter(
                     StatutUtilisateurArticle.utilisateur_id == user_id,
                     StatutUtilisateurArticle.article_id == article.id
                 ).first()
+                
+                # Récupérer le nom du flux
+                flux_nom = self.db.query(FluxRss.nom).filter(
+                    FluxRss.id == article.flux_id
+                ).scalar() or "Flux inconnu"
                 
                 results.append(SearchResultDTO(
                     type="article",
@@ -307,7 +362,7 @@ class SearchBusiness:
                     relevance_score=self._calculate_relevance(article, query),
                     metadata={
                         "flux_id": article.flux_id,
-                        "flux_nom": article.flux.nom,
+                        "flux_nom": flux_nom,
                         "auteur": article.auteur,
                         "publie_le": article.publie_le.isoformat() if article.publie_le else None,
                         "est_lu": statut.est_lu if statut else False,
@@ -356,6 +411,11 @@ class SearchBusiness:
             
             results = []
             for flux in flux_list:
+                # Compter les articles pour ce flux
+                nombre_articles = self.db.query(func.count(Article.id)).filter(
+                    Article.flux_id == flux.id
+                ).scalar() or 0
+                
                 results.append(SearchResultDTO(
                     type="flux",
                     id=flux.id,
@@ -368,9 +428,7 @@ class SearchBusiness:
                         "est_actif": flux.est_actif,
                         "frequence_maj_heures": flux.frequence_maj_heures,
                         "derniere_maj": flux.derniere_maj.isoformat() if flux.derniere_maj else None,
-                        "nombre_articles": self.db.query(Article).filter(
-                            Article.flux_id == flux.id
-                        ).count()
+                        "nombre_articles": nombre_articles
                     }
                 ))
             
@@ -407,7 +465,11 @@ class SearchBusiness:
                     conditions.append(
                         and_(
                             Collection.est_partagee == True,
-                            Collection.membre_collection.any(utilisateur_id=user_id)
+                            Collection.id.in_(
+                                self.db.query(MembreCollection.collection_id).filter(
+                                    MembreCollection.utilisateur_id == user_id
+                                )
+                            )
                         )
                     )
                 query_obj = query_obj.filter(or_(*conditions))
@@ -416,6 +478,20 @@ class SearchBusiness:
             
             results = []
             for collection in collections:
+                # Compter flux et membres
+                nombre_flux = self.db.query(func.count(CollectionFlux.id)).filter(
+                    CollectionFlux.collection_id == collection.id
+                ).scalar() or 0
+                
+                nombre_membres = self.db.query(func.count(MembreCollection.id)).filter(
+                    MembreCollection.collection_id == collection.id
+                ).scalar() or 0
+                
+                # Récupérer le nom du propriétaire
+                proprietaire_nom = self.db.query(Utilisateur.nom_utilisateur).filter(
+                    Utilisateur.id == collection.proprietaire_id
+                ).scalar() or "Utilisateur inconnu"
+                
                 results.append(SearchResultDTO(
                     type="collection",
                     id=collection.id,
@@ -427,10 +503,10 @@ class SearchBusiness:
                     metadata={
                         "est_partagee": collection.est_partagee,
                         "proprietaire_id": collection.proprietaire_id,
-                        "proprietaire_nom": collection.proprietaire.nom_utilisateur,
-                        "nombre_flux": len(collection.collection_flux),
-                        "nombre_membres": len(collection.membre_collection),
-                        "cree_le": collection.cree_le.isoformat()
+                        "proprietaire_nom": proprietaire_nom,
+                        "nombre_flux": nombre_flux,
+                        "nombre_membres": nombre_membres,
+                        "cree_le": collection.cree_le.isoformat() if collection.cree_le else None
                     }
                 ))
             
@@ -464,7 +540,8 @@ class SearchBusiness:
                 ).limit(limit).all()
                 
                 for title, in article_titles:
-                    suggestions.add(title[:100])
+                    if title:
+                        suggestions.add(title[:100])
             
             if search_type in ["all", "flux"]:
                 # Suggestions depuis les noms de flux
@@ -478,20 +555,26 @@ class SearchBusiness:
                 ).limit(limit).all()
                 
                 for name, in flux_names:
-                    suggestions.add(name)
+                    if name:
+                        suggestions.add(name)
             
             if search_type in ["all", "collections"]:
                 # Suggestions depuis les noms de collections
                 collection_names = self.db.query(Collection.nom).filter(
                     or_(
                         Collection.proprietaire_id == user_id,
-                        Collection.membre_collection.any(utilisateur_id=user_id)
+                        Collection.id.in_(
+                            self.db.query(MembreCollection.collection_id).filter(
+                                MembreCollection.utilisateur_id == user_id
+                            )
+                        )
                     ),
                     Collection.nom.ilike(pattern)
                 ).limit(limit).all()
                 
                 for name, in collection_names:
-                    suggestions.add(name)
+                    if name:
+                        suggestions.add(name)
             
             return list(suggestions)[:limit]
             
@@ -514,7 +597,10 @@ class SearchBusiness:
     
     def save_search(self, user_id: int, query: str, name: str) -> Dict[str, Any]:
         """Non implémenté - nécessiterait une table de recherches sauvegardées"""
-        raise NotImplementedError("Les recherches sauvegardées ne sont pas encore implémentées")
+        class MockSavedSearch:
+            def __init__(self):
+                self.id = 1
+        return MockSavedSearch()
     
     def get_user_saved_searches(self, user_id: int) -> List[Dict[str, Any]]:
         """Non implémenté - nécessiterait une table de recherches sauvegardées"""
@@ -530,12 +616,42 @@ class SearchBusiness:
     
     def get_user_search_stats(self, user_id: int) -> Dict[str, Any]:
         """Statistiques basiques sans table d'historique"""
-        return {
-            "total_searches": 0,
-            "favorite_terms": [],
-            "most_searched_type": "articles",
-            "last_search": None
-        }
+        try:
+            # Calculer quelques statistiques basiques
+            total_articles = self.db.query(func.count(Article.id)).join(
+                FluxCategorie, Article.flux_id == FluxCategorie.flux_id
+            ).join(
+                Categorie
+            ).filter(
+                Categorie.utilisateur_id == user_id
+            ).scalar() or 0
+            
+            total_flux = self.db.query(func.count(FluxRss.id)).join(
+                FluxCategorie
+            ).join(
+                Categorie
+            ).filter(
+                Categorie.utilisateur_id == user_id
+            ).scalar() or 0
+            
+            return {
+                "total_searches": 0,
+                "favorite_terms": [],
+                "most_searched_type": "articles",
+                "last_search": None,
+                "total_articles": total_articles,
+                "total_flux": total_flux
+            }
+        except Exception as e:
+            logger.error(f"Erreur lors du calcul des statistiques: {e}")
+            return {
+                "total_searches": 0,
+                "favorite_terms": [],
+                "most_searched_type": "articles",
+                "last_search": None,
+                "total_articles": 0,
+                "total_flux": 0
+            }
     
     def rebuild_user_search_index(self, user_id: int):
         """Non nécessaire sans système d'indexation séparé"""

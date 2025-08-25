@@ -1,7 +1,9 @@
 from typing import List, Optional
 from sqlalchemy import Boolean, Column, DateTime, ForeignKeyConstraint, Integer, Text, UniqueConstraint, Index, text, PrimaryKeyConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from .base import Base
+from sqlalchemy.orm import relationship
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
 
 class CommentaireArticle(Base):
     __tablename__ = 'commentaire_article'

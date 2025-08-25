@@ -53,7 +53,6 @@ services:
       - DATABASE_URL=postgresql://postgres:mypassword@postgres:5432/suprss_bd
       - REDIS_URL=redis://redis:6379
       - SECRET_KEY=your-secret-key-change-this-in-production
-      - CORS_ORIGINS='["http://localhost","http://localhost:3000","http://localhost:8080"]'
     volumes:
       - ./backend:/app
       - backend_logs:/app/logs

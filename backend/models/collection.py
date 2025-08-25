@@ -1,7 +1,9 @@
 from typing import List, Optional
 from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKeyConstraint, Integer, String, Text, UniqueConstraint, Index, text, PrimaryKeyConstraint
 from sqlalchemy.orm import relationship
-from .base import Base
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
 
 class Collection(Base):
     __tablename__ = 'collection'

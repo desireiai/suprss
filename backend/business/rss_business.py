@@ -9,10 +9,16 @@ import logging
 import hashlib
 import time
 
-from models.rss import FluxRss, Article
-from models.category import Categorie, FluxCategorie
-from models.interaction import StatutUtilisateurArticle
-from models.import_export import JournalImport, JournalExport
+# Imports corrigés pour correspondre à votre structure de modèles
+from models import (
+    FluxRss, 
+    Article, 
+    Categorie, 
+    FluxCategorie,
+    StatutUtilisateurArticle,
+    JournalImport,
+    JournalExport
+)
 from dtos.rss_dto import (
     FluxCreateDTO,
     FluxUpdateDTO,
@@ -46,7 +52,7 @@ class RssBusiness:
         """Crée un nouveau flux RSS pour l'utilisateur"""
         try:
             # Vérifier si le flux existe déjà globalement
-            flux = self.db.query(FluxRss).filter_by(url=str(flux_data.url)).first()
+            flux = self.db.query(FluxRss).filter(FluxRss.url == str(flux_data.url)).first()
             
             if not flux:
                 # Parser le flux pour obtenir les informations
@@ -59,39 +65,58 @@ class RssBusiness:
                     description=feed_info.get('description', ''),
                     frequence_maj_heures=flux_data.frequence_maj_heures,
                     est_actif=True,
-                    derniere_maj=datetime.utcnow()
+                    derniere_maj=datetime.utcnow(),
+                    cree_le=datetime.utcnow(),
+                    modifie_le=datetime.utcnow()
                 )
                 self.db.add(flux)
                 self.db.flush()
             
             # Obtenir ou créer la catégorie
             if flux_data.categorie_id:
+                # Vérifier que la catégorie appartient à l'utilisateur
+                categorie = self.db.query(Categorie).filter(
+                    Categorie.id == flux_data.categorie_id,
+                    Categorie.utilisateur_id == user_id
+                ).first()
+                
+                if not categorie:
+                    raise ValueError("Catégorie non trouvée ou non autorisée")
+                    
                 categorie_id = flux_data.categorie_id
             else:
-                # Utiliser la catégorie par défaut "Non classé"
-                categorie = self.db.query(Categorie).filter_by(
-                    utilisateur_id=user_id,
-                    nom="Non classé"
+                # Utiliser la catégorie par défaut "Général"
+                categorie = self.db.query(Categorie).filter(
+                    Categorie.utilisateur_id == user_id,
+                    Categorie.nom == "Général"
                 ).first()
                 
                 if not categorie:
                     # Créer la catégorie par défaut si elle n'existe pas
                     categorie = Categorie(
-                        nom="Non classé",
+                        nom="Général",
                         utilisateur_id=user_id,
-                        couleur="#007bff"
+                        couleur="#007bff",
+                        cree_le=datetime.utcnow()
                     )
                     self.db.add(categorie)
                     self.db.flush()
                 
                 categorie_id = categorie.id
             
-            # Associer le flux à la catégorie de l'utilisateur
-            flux_cat = FluxCategorie(
-                flux_id=flux.id,
-                categorie_id=categorie_id
-            )
-            self.db.add(flux_cat)
+            # Vérifier si l'association n'existe pas déjà
+            existing_association = self.db.query(FluxCategorie).filter(
+                FluxCategorie.flux_id == flux.id,
+                FluxCategorie.categorie_id == categorie_id
+            ).first()
+            
+            if not existing_association:
+                # Associer le flux à la catégorie de l'utilisateur
+                flux_cat = FluxCategorie(
+                    flux_id=flux.id,
+                    categorie_id=categorie_id
+                )
+                self.db.add(flux_cat)
             
             self.db.commit()
             
@@ -116,7 +141,7 @@ class RssBusiness:
     def fetch_flux_articles(self, flux_id: int) -> int:
         """Récupère les articles d'un flux RSS"""
         try:
-            flux = self.db.query(FluxRss).filter_by(id=flux_id).first()
+            flux = self.db.query(FluxRss).filter(FluxRss.id == flux_id).first()
             if not flux:
                 return 0
             
@@ -133,15 +158,15 @@ class RssBusiness:
                 guid = guid[:500]
                 
                 # Vérifier si l'article existe déjà
-                exists = self.db.query(Article).filter_by(
-                    flux_id=flux_id,
-                    guid=guid
+                exists = self.db.query(Article).filter(
+                    Article.flux_id == flux_id,
+                    Article.guid == guid
                 ).first()
                 
                 if not exists:
                     # Parser la date
                     publie_le = None
-                    if hasattr(entry, 'published_parsed'):
+                    if hasattr(entry, 'published_parsed') and entry.published_parsed:
                         try:
                             publie_le = datetime.fromtimestamp(time.mktime(entry.published_parsed))
                         except:
@@ -151,7 +176,7 @@ class RssBusiness:
                     
                     # Extraire le contenu
                     contenu = None
-                    if hasattr(entry, 'content'):
+                    if hasattr(entry, 'content') and entry.content:
                         contenu = entry.content[0].get('value', '')
                     
                     article = Article(
@@ -162,7 +187,9 @@ class RssBusiness:
                         auteur=entry.get('author', '')[:255] if entry.get('author') else None,
                         contenu=contenu,
                         resume=entry.get('summary', ''),
-                        publie_le=publie_le
+                        publie_le=publie_le,
+                        recupere_le=datetime.utcnow(),
+                        modifie_le=datetime.utcnow()
                     )
                     
                     self.db.add(article)
@@ -170,6 +197,7 @@ class RssBusiness:
             
             # Mettre à jour la date de dernière MAJ
             flux.derniere_maj = datetime.utcnow()
+            flux.modifie_le = datetime.utcnow()
             self.db.commit()
             
             logger.info(f"Ajouté {new_articles} articles pour le flux {flux_id}")
@@ -206,7 +234,9 @@ class RssBusiness:
         results = []
         for flux in flux_list:
             # Compter les articles
-            nombre_articles = self.db.query(Article).filter_by(flux_id=flux.id).count()
+            nombre_articles = self.db.query(func.count(Article.id)).filter(
+                Article.flux_id == flux.id
+            ).scalar() or 0
             
             results.append(FluxResponseDTO(
                 id=flux.id,
@@ -224,12 +254,14 @@ class RssBusiness:
     
     def get_flux_by_id(self, flux_id: int) -> Optional[FluxResponseDTO]:
         """Récupère un flux par son ID"""
-        flux = self.db.query(FluxRss).filter_by(id=flux_id).first()
+        flux = self.db.query(FluxRss).filter(FluxRss.id == flux_id).first()
         
         if not flux:
             return None
         
-        nombre_articles = self.db.query(Article).filter_by(flux_id=flux.id).count()
+        nombre_articles = self.db.query(func.count(Article.id)).filter(
+            Article.flux_id == flux.id
+        ).scalar() or 0
         
         return FluxResponseDTO(
             id=flux.id,
@@ -256,7 +288,7 @@ class RssBusiness:
     
     def update_flux(self, flux_id: int, flux_update: FluxUpdateDTO) -> FluxResponseDTO:
         """Met à jour un flux"""
-        flux = self.db.query(FluxRss).filter_by(id=flux_id).first()
+        flux = self.db.query(FluxRss).filter(FluxRss.id == flux_id).first()
         
         if not flux:
             raise ValueError("Flux non trouvé")
@@ -273,7 +305,9 @@ class RssBusiness:
         flux.modifie_le = datetime.utcnow()
         self.db.commit()
         
-        nombre_articles = self.db.query(Article).filter_by(flux_id=flux.id).count()
+        nombre_articles = self.db.query(func.count(Article.id)).filter(
+            Article.flux_id == flux.id
+        ).scalar() or 0
         
         return FluxResponseDTO(
             id=flux.id,
@@ -291,7 +325,7 @@ class RssBusiness:
         """Supprime un flux (retire l'association avec l'utilisateur)"""
         # Note: On ne supprime pas le flux lui-même, juste l'association
         # Le flux pourrait être utilisé par d'autres utilisateurs
-        flux_cats = self.db.query(FluxCategorie).filter_by(flux_id=flux_id).all()
+        flux_cats = self.db.query(FluxCategorie).filter(FluxCategorie.flux_id == flux_id).all()
         
         for fc in flux_cats:
             self.db.delete(fc)
@@ -300,7 +334,7 @@ class RssBusiness:
     
     def can_refresh_flux(self, flux_id: int) -> bool:
         """Vérifie si un flux peut être rafraîchi"""
-        flux = self.db.query(FluxRss).filter_by(id=flux_id).first()
+        flux = self.db.query(FluxRss).filter(FluxRss.id == flux_id).first()
         
         if not flux or not flux.derniere_maj:
             return True
@@ -321,11 +355,11 @@ class RssBusiness:
         """Récupère les articles de l'utilisateur avec filtres"""
         # Requête de base
         query = self.db.query(Article).join(
-            FluxRss
+            FluxRss, Article.flux_id == FluxRss.id
         ).join(
-            FluxCategorie
+            FluxCategorie, FluxRss.id == FluxCategorie.flux_id
         ).join(
-            Categorie
+            Categorie, FluxCategorie.categorie_id == Categorie.id
         ).filter(
             Categorie.utilisateur_id == user_id
         )
@@ -397,10 +431,16 @@ class RssBusiness:
         # Convertir en DTOs
         results = []
         for article in articles:
-            statut = self.db.query(StatutUtilisateurArticle).filter_by(
-                utilisateur_id=user_id,
-                article_id=article.id
+            # Récupérer le statut spécifiquement
+            statut = self.db.query(StatutUtilisateurArticle).filter(
+                StatutUtilisateurArticle.utilisateur_id == user_id,
+                StatutUtilisateurArticle.article_id == article.id
             ).first()
+            
+            # Récupérer le nom du flux
+            flux_nom = self.db.query(FluxRss.nom).filter(
+                FluxRss.id == article.flux_id
+            ).scalar() or "Flux inconnu"
             
             results.append(ArticleResponseDTO(
                 id=article.id,
@@ -411,7 +451,7 @@ class RssBusiness:
                 contenu=article.contenu,
                 publie_le=article.publie_le,
                 flux_id=article.flux_id,
-                flux_nom=article.flux.nom,
+                flux_nom=flux_nom,
                 est_lu=statut.est_lu if statut else False,
                 est_favori=statut.est_favori if statut else False
             ))
@@ -420,10 +460,15 @@ class RssBusiness:
     
     def get_article_by_id(self, article_id: int) -> Optional[ArticleResponseDTO]:
         """Récupère un article par son ID"""
-        article = self.db.query(Article).filter_by(id=article_id).first()
+        article = self.db.query(Article).filter(Article.id == article_id).first()
         
         if not article:
             return None
+        
+        # Récupérer le nom du flux
+        flux_nom = self.db.query(FluxRss.nom).filter(
+            FluxRss.id == article.flux_id
+        ).scalar() or "Flux inconnu"
         
         # Note: On ne récupère pas le statut ici car il dépend de l'utilisateur
         return ArticleResponseDTO(
@@ -435,7 +480,7 @@ class RssBusiness:
             contenu=article.contenu,
             publie_le=article.publie_le,
             flux_id=article.flux_id,
-            flux_nom=article.flux.nom,
+            flux_nom=flux_nom,
             est_lu=False,
             est_favori=False
         )
@@ -443,11 +488,11 @@ class RssBusiness:
     def user_can_read_article(self, user_id: int, article_id: int) -> bool:
         """Vérifie si un utilisateur peut lire un article"""
         article = self.db.query(Article).join(
-            FluxRss
+            FluxRss, Article.flux_id == FluxRss.id
         ).join(
-            FluxCategorie
+            FluxCategorie, FluxRss.id == FluxCategorie.flux_id
         ).join(
-            Categorie
+            Categorie, FluxCategorie.categorie_id == Categorie.id
         ).filter(
             Article.id == article_id,
             Categorie.utilisateur_id == user_id
@@ -457,9 +502,9 @@ class RssBusiness:
     
     def mark_article_as_read(self, user_id: int, article_id: int):
         """Marque un article comme lu"""
-        statut = self.db.query(StatutUtilisateurArticle).filter_by(
-            utilisateur_id=user_id,
-            article_id=article_id
+        statut = self.db.query(StatutUtilisateurArticle).filter(
+            StatutUtilisateurArticle.utilisateur_id == user_id,
+            StatutUtilisateurArticle.article_id == article_id
         ).first()
         
         if not statut:
@@ -478,9 +523,9 @@ class RssBusiness:
     
     def mark_article_as_unread(self, user_id: int, article_id: int):
         """Marque un article comme non lu"""
-        statut = self.db.query(StatutUtilisateurArticle).filter_by(
-            utilisateur_id=user_id,
-            article_id=article_id
+        statut = self.db.query(StatutUtilisateurArticle).filter(
+            StatutUtilisateurArticle.utilisateur_id == user_id,
+            StatutUtilisateurArticle.article_id == article_id
         ).first()
         
         if statut:
@@ -490,9 +535,9 @@ class RssBusiness:
     
     def add_article_to_favorites(self, user_id: int, article_id: int):
         """Ajoute un article aux favoris"""
-        statut = self.db.query(StatutUtilisateurArticle).filter_by(
-            utilisateur_id=user_id,
-            article_id=article_id
+        statut = self.db.query(StatutUtilisateurArticle).filter(
+            StatutUtilisateurArticle.utilisateur_id == user_id,
+            StatutUtilisateurArticle.article_id == article_id
         ).first()
         
         if not statut:
@@ -511,9 +556,9 @@ class RssBusiness:
     
     def remove_article_from_favorites(self, user_id: int, article_id: int):
         """Retire un article des favoris"""
-        statut = self.db.query(StatutUtilisateurArticle).filter_by(
-            utilisateur_id=user_id,
-            article_id=article_id
+        statut = self.db.query(StatutUtilisateurArticle).filter(
+            StatutUtilisateurArticle.utilisateur_id == user_id,
+            StatutUtilisateurArticle.article_id == article_id
         ).first()
         
         if statut:
@@ -549,7 +594,7 @@ class RssBusiness:
     ) -> List[ArticleResponseDTO]:
         """Récupère les articles favoris de l'utilisateur"""
         articles = self.db.query(Article).join(
-            StatutUtilisateurArticle
+            StatutUtilisateurArticle, Article.id == StatutUtilisateurArticle.article_id
         ).filter(
             StatutUtilisateurArticle.utilisateur_id == user_id,
             StatutUtilisateurArticle.est_favori == True
@@ -559,6 +604,11 @@ class RssBusiness:
         
         results = []
         for article in articles:
+            # Récupérer le nom du flux
+            flux_nom = self.db.query(FluxRss.nom).filter(
+                FluxRss.id == article.flux_id
+            ).scalar() or "Flux inconnu"
+            
             results.append(ArticleResponseDTO(
                 id=article.id,
                 titre=article.titre,
@@ -568,7 +618,7 @@ class RssBusiness:
                 contenu=article.contenu,
                 publie_le=article.publie_le,
                 flux_id=article.flux_id,
-                flux_nom=article.flux.nom,
+                flux_nom=flux_nom,
                 est_lu=True,  # Forcément lu si en favori
                 est_favori=True
             ))
@@ -583,11 +633,11 @@ class RssBusiness:
     ) -> int:
         """Compte les articles non lus"""
         query = self.db.query(Article).join(
-            FluxRss
+            FluxRss, Article.flux_id == FluxRss.id
         ).join(
-            FluxCategorie
+            FluxCategorie, FluxRss.id == FluxCategorie.flux_id
         ).join(
-            Categorie
+            Categorie, FluxCategorie.categorie_id == Categorie.id
         ).filter(
             Categorie.utilisateur_id == user_id
         )
@@ -621,16 +671,17 @@ class RssBusiness:
             imported_count = 0
             
             # Obtenir la catégorie par défaut
-            categorie = self.db.query(Categorie).filter_by(
-                utilisateur_id=user_id,
-                nom="Non classé"
+            categorie = self.db.query(Categorie).filter(
+                Categorie.utilisateur_id == user_id,
+                Categorie.nom == "Général"
             ).first()
             
             if not categorie:
                 categorie = Categorie(
-                    nom="Non classé",
+                    nom="Général",
                     utilisateur_id=user_id,
-                    couleur="#007bff"
+                    couleur="#007bff",
+                    cree_le=datetime.utcnow()
                 )
                 self.db.add(categorie)
                 self.db.flush()
@@ -654,7 +705,8 @@ class RssBusiness:
                 utilisateur_id=user_id,
                 format='OPML',
                 nom_fichier='import.opml',
-                flux_importes=imported_count
+                flux_importes=imported_count,
+                cree_le=datetime.utcnow()
             )
             self.db.add(journal)
             self.db.commit()
@@ -714,7 +766,8 @@ class RssBusiness:
         journal = JournalExport(
             utilisateur_id=user_id,
             format='OPML',
-            nom_fichier='export.opml'
+            nom_fichier='export.opml',
+            cree_le=datetime.utcnow()
         )
         self.db.add(journal)
         self.db.commit()
@@ -730,5 +783,6 @@ class RssBusiness:
                 'title': feed.feed.get('title', 'Sans titre'),
                 'description': feed.feed.get('description', '')
             }
-        except:
+        except Exception as e:
+            logger.error(f"Erreur lors du parsing du flux {url}: {e}")
             return {'title': 'Flux RSS', 'description': ''}
