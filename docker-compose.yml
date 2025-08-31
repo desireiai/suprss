@@ -156,6 +156,52 @@ services:
       - postgres
     networks:
       - suprss_network
+ # Frontend React - Mode Développement
+  frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: suprss_frontend_dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount du code source pour le hot reload
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      # Exclure node_modules pour éviter les conflits
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - WATCHPACK_POLLING=true  # Pour le hot reload dans Docker
+      - CHOKIDAR_USEPOLLING=true  # Pour le hot reload dans Docker
+      - WDS_SOCKET_PORT=3000
+    depends_on:
+      - backend
+    networks:
+      - suprss_network
+    stdin_open: true  # Nécessaire pour React
+    tty: true  # Nécessaire pour React
+    profiles:
+      - dev  # Utiliser ce service seulement avec --profile dev
+
+  # Frontend React - Mode Production
+  frontend-prod:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: suprss_frontend_prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - REACT_APP_API_URL=http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - suprss_network
+    profiles:
+      - prod  # Utiliser ce service seulement avec --profile prod
 
 networks:
   suprss_network:

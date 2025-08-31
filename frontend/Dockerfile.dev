@@ -1,0 +1,24 @@
+# frontend/Dockerfile.dev
+
+# === OPTION 2: DÉVELOPPEMENT (avec hot reload) ===
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Installer les dépendances système nécessaires
+RUN apk add --no-cache git
+
+# Copier les fichiers de dépendances
+COPY package*.json ./
+
+# Installer toutes les dépendances (dev + prod)
+RUN npm install
+
+# Copier le reste du code
+COPY . .
+
+# Exposer le port 3000 (port par défaut de Create React App)
+EXPOSE 3000
+
+# Démarrer l'application en mode développement
+CMD ["npm", "start"]
