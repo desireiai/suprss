@@ -1,16 +1,23 @@
-// src/components/Layout/Header.jsx
+// frontend/src/components/Layout/Header.jsx
 import React, { useState } from 'react';
-import { ChevronRight, Plus, X, Menu } from 'lucide-react';
+import { ChevronRight, Plus, X, Menu, User, LogOut } from 'lucide-react';
 import { useApp } from '../../hooks/useApp';
 import Button from '../Common/Button';
 
-const Header = () => {
+const Header = ({ user, onLogout }) => {
   const { activeCollection, activeView, setActiveView } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const handleNavClick = (view) => {
     setActiveView(view);
     setMobileMenuOpen(false);
+  };
+
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout();
+    }
   };
 
   return (
@@ -68,9 +75,53 @@ const Header = () => {
               <Button variant="secondary" className="desktop-only">
                 <Plus size={16} /> Nouveau flux
               </Button>
-              <a href="#" className="nav-link desktop-only">Profil</a>
+              
+              {/* Menu utilisateur */}
+              <div className="user-dropdown desktop-only">
+                <button 
+                  className="user-button"
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                >
+                  <div className="user-avatar">
+                    {user?.firstName ? user.firstName[0].toUpperCase() : 'U'}
+                  </div>
+                  <span className="user-name">
+                    {user?.firstName || user?.email?.split('@')[0] || 'Utilisateur'}
+                  </span>
+                </button>
+                
+                {userMenuOpen && (
+                  <div className="user-dropdown-menu">
+                    <div className="dropdown-header">
+                      <div className="user-info">
+                        <div className="user-full-name">
+                          {user?.firstName} {user?.lastName}
+                        </div>
+                        <div className="user-email">{user?.email}</div>
+                      </div>
+                    </div>
+                    <div className="dropdown-divider"></div>
+                    <a href="#" className="dropdown-item">
+                      <User size={16} />
+                      Mon profil
+                    </a>
+                    <a href="#" className="dropdown-item">
+                      Paramètres
+                    </a>
+                    <div className="dropdown-divider"></div>
+                    <button 
+                      className="dropdown-item logout"
+                      onClick={handleLogout}
+                    >
+                      <LogOut size={16} />
+                      Déconnexion
+                    </button>
+                  </div>
+                )}
+              </div>
             </>
           )}
+          
           <button 
             className="mobile-menu-btn mobile-only"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -82,6 +133,18 @@ const Header = () => {
 
       {mobileMenuOpen && (
         <div className="mobile-menu">
+          <div className="mobile-user-info">
+            <div className="user-avatar">
+              {user?.firstName ? user.firstName[0].toUpperCase() : 'U'}
+            </div>
+            <div>
+              <div className="user-name">
+                {user?.firstName} {user?.lastName}
+              </div>
+              <div className="user-email">{user?.email}</div>
+            </div>
+          </div>
+          <div className="dropdown-divider"></div>
           <a 
             href="#" 
             className="nav-link" 
@@ -94,7 +157,14 @@ const Header = () => {
           </a>
           <a href="#" className="nav-link">Collections partagées</a>
           <a href="#" className="nav-link">Favoris</a>
-          <a href="#" className="nav-link">Profil</a>
+          <a href="#" className="nav-link">Mon profil</a>
+          <div className="dropdown-divider"></div>
+          <button 
+            className="nav-link logout-mobile"
+            onClick={handleLogout}
+          >
+            <LogOut size={16} /> Déconnexion
+          </button>
         </div>
       )}
     </header>

@@ -1,0 +1,198 @@
+/* frontend/src/styles/user-menu.css */
+/* À ajouter à votre fichier index.css existant */
+
+/* ===== USER DROPDOWN ===== */
+.user-dropdown {
+  position: relative;
+}
+
+.user-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 30px;
+  padding: 0.3rem 1rem 0.3rem 0.3rem;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.user-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: white;
+  color: var(--primary-purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.user-name {
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.user-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  min-width: 250px;
+  z-index: 1100;
+  overflow: hidden;
+  animation: dropdownSlide 0.2s ease-out;
+}
+
+@keyframes dropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-header {
+  padding: 1rem;
+  background: var(--bg-light);
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.user-full-name {
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.user-email {
+  font-size: 0.85rem;
+  color: var(--text-gray);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 0;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 1rem;
+  color: var(--text-dark);
+  text-decoration: none;
+  transition: all 0.2s;
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+.dropdown-item:hover {
+  background: var(--bg-light);
+  color: var(--primary-purple);
+}
+
+.dropdown-item.logout {
+  color: var(--danger-red);
+}
+
+.dropdown-item.logout:hover {
+  background: #FEF2F2;
+}
+
+/* ===== MOBILE USER INFO ===== */
+.mobile-user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.mobile-user-info .user-avatar {
+  width: 40px;
+  height: 40px;
+}
+
+.mobile-user-info .user-name {
+  color: white;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+
+.mobile-user-info .user-email {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+}
+
+.logout-mobile {
+  color: white !important;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(239, 68, 68, 0.2) !important;
+  border-radius: 8px;
+}
+
+.logout-mobile:hover {
+  background: rgba(239, 68, 68, 0.3) !important;
+}
+
+/* ===== LOADING SCREEN ===== */
+.loading-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--primary-purple) 0%, var(--light-purple) 100%);
+}
+
+.loading-spinner-container {
+  text-align: center;
+  color: white;
+}
+
+.loading-spinner-container .loading-spinner {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+.loading-spinner-container p {
+  font-size: 1.2rem;
+  opacity: 0.9;
+}
+
+/* Cacher le menu quand on clique ailleurs */
+.user-dropdown:not(:focus-within) .user-dropdown-menu {
+  display: none;
+}
+
+.user-dropdown:focus-within .user-dropdown-menu {
+  display: block;
+}

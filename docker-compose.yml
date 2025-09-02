@@ -157,11 +157,11 @@ services:
     networks:
       - suprss_network
  # Frontend React - Mode Développement
-  frontend-dev:
+  frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
-    container_name: suprss_frontend_dev
+    container_name: suprss_frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -182,26 +182,6 @@ services:
       - suprss_network
     stdin_open: true  # Nécessaire pour React
     tty: true  # Nécessaire pour React
-    profiles:
-      - dev  # Utiliser ce service seulement avec --profile dev
-
-  # Frontend React - Mode Production
-  frontend-prod:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: suprss_frontend_prod
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    environment:
-      - REACT_APP_API_URL=http://backend:8000
-    depends_on:
-      - backend
-    networks:
-      - suprss_network
-    profiles:
-      - prod  # Utiliser ce service seulement avec --profile prod
 
 networks:
   suprss_network:
