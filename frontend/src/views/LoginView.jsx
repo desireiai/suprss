@@ -58,7 +58,7 @@ const LoginView = ({ onLogin }) => {
       
       if (code && state) {
         try {
-          const provider = state; // Le provider est stocké dans le state
+          const provider = state;
           await handleOAuthLogin(provider, code);
         } catch (error) {
           console.error('OAuth callback error:', error);
@@ -129,6 +129,7 @@ const LoginView = ({ onLogin }) => {
 
     try {
       const endpoint = isLoginMode ? '/api/users/login' : '/api/users/register';
+      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
       
       // Pour la connexion, utiliser FormData pour OAuth2PasswordRequestForm
       let body;
@@ -136,23 +137,24 @@ const LoginView = ({ onLogin }) => {
       
       if (isLoginMode) {
         // FastAPI OAuth2PasswordRequestForm attend un form-data
-        const formData = new FormData();
-        formData.append('username', formData.email); // username est l'email
-        formData.append('password', formData.password);
-        body = formData;
+        const loginFormData = new FormData();
+        loginFormData.append('username', formData.email); // username est l'email dans FastAPI
+        loginFormData.append('password', formData.password);
+        body = loginFormData;
+        // Pas de Content-Type pour FormData, le navigateur l'ajoute automatiquement
       } else {
-        // Pour l'inscription, envoyer du JSON
+        // Pour l'inscription, envoyer du JSON selon votre DTO
         headers = { 'Content-Type': 'application/json' };
         body = JSON.stringify({
           email: formData.email,
-          mot_de_passe: formData.password,
+          mot_de_passe: formData.password, // Correspond à votre UserRegisterDTO
           nom_utilisateur: formData.username,
           prenom: formData.firstName,
           nom: formData.lastName
         });
       }
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}${endpoint}`, {
+      const response = await fetch(`${baseUrl}${endpoint}`, {
         method: 'POST',
         headers,
         body
@@ -161,23 +163,54 @@ const LoginView = ({ onLogin }) => {
       const data = await response.json();
 
       if (response.ok) {
-        // Stocker le token et les infos utilisateur
-        localStorage.setItem('token', data.access_token);
-        localStorage.setItem('refresh_token', data.refresh_token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        
-        if (onLogin) {
-          onLogin(data.user);
+        // Stocker les tokens et les infos utilisateur
+        if (isLoginMode) {
+          // Réponse de connexion : TokenResponseDTO
+          localStorage.setItem('access_token', data.access_token);
+          localStorage.setItem('refresh_token', data.refresh_token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          
+          if (onLogin) {
+            onLogin(data.user);
+          }
+        } else {
+          // Réponse d'inscription : UserResponseDTO
+          // L'utilisateur doit se connecter après l'inscription
+          alert('Inscription réussie ! Vérifiez votre email puis connectez-vous.');
+          setIsLoginMode(true);
+          setFormData({
+            email: formData.email, // Garder l'email
+            password: '',
+            confirmPassword: '',
+            firstName: '',
+            lastName: '',
+            username: ''
+          });
         }
       } else {
-        // Gérer les erreurs
+        // Gérer les erreurs selon la structure de FastAPI
         if (data.detail) {
-          if (data.detail.includes('email')) {
-            setErrors({ email: data.detail });
-          } else if (data.detail.includes('mot de passe')) {
-            setErrors({ password: data.detail });
+          if (typeof data.detail === 'string') {
+            // Erreur simple
+            if (data.detail.includes('email')) {
+              setErrors({ email: data.detail });
+            } else if (data.detail.includes('mot de passe') || data.detail.includes('password')) {
+              setErrors({ password: data.detail });
+            } else if (data.detail.includes('nom d\'utilisateur') || data.detail.includes('username')) {
+              setErrors({ username: data.detail });
+            } else {
+              setErrors({ general: data.detail });
+            }
+          } else if (Array.isArray(data.detail)) {
+            // Erreurs de validation Pydantic
+            const fieldErrors = {};
+            data.detail.forEach(error => {
+              const field = error.loc[error.loc.length - 1];
+              fieldErrors[field] = error.msg;
+            });
+            setErrors(fieldErrors);
           } else {
-            setErrors({ general: data.detail });
+            setErrors({ general: 'Une erreur est survenue' });
           }
         } else {
           setErrors({ general: 'Une erreur est survenue' });
@@ -200,7 +233,7 @@ const LoginView = ({ onLogin }) => {
       redirect_uri: config.redirectUri,
       response_type: 'code',
       scope: config.scope,
-      state: provider // Stocker le provider dans le state
+      state: provider
     });
 
     // Rediriger vers la page d'autorisation OAuth
@@ -211,15 +244,16 @@ const LoginView = ({ onLogin }) => {
     setOauthLoading(provider);
     
     try {
-      // Échanger le code contre un token avec votre backend
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/users/oauth2/login`, {
+      // Votre backend doit gérer l'échange du code contre un token
+      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${baseUrl}/api/users/oauth2/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           provider,
-          token: code, // Votre backend devra échanger ce code contre un token
+          token: code, // Le code d'autorisation
           redirect_uri: OAUTH_CONFIG[provider].redirectUri
         })
       });
@@ -227,13 +261,17 @@ const LoginView = ({ onLogin }) => {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('token', data.access_token);
+        // Même structure que la connexion normale : TokenResponseDTO
+        localStorage.setItem('access_token', data.access_token);
         localStorage.setItem('refresh_token', data.refresh_token);
         localStorage.setItem('user', JSON.stringify(data.user));
         
         if (onLogin) {
           onLogin(data.user);
         }
+        
+        // Nettoyer l'URL
+        window.history.replaceState({}, document.title, window.location.pathname);
       } else {
         setErrors({ oauth: data.detail || 'Erreur de connexion OAuth' });
       }

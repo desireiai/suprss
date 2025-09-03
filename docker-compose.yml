@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   # Base de données PostgreSQL
   postgres:
@@ -7,9 +5,9 @@ services:
     container_name: suprss_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: suprss_bd
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mypassword}
+      POSTGRES_DB: ${POSTGRES_DB:-suprss_bd}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./bd_suprss/suprss_postgresql_schema.sql:/docker-entrypoint-initdb.d/suprss_postgresql_schema.sql
@@ -18,7 +16,7 @@ services:
     networks:
       - suprss_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d suprss_bd"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-suprss_bd}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -49,10 +47,10 @@ services:
     container_name: suprss_backend
     restart: unless-stopped
     environment:
-      - ENVIRONMENT=development
-      - DATABASE_URL=postgresql://postgres:mypassword@postgres:5432/suprss_bd
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-mypassword}@postgres:5432/${POSTGRES_DB:-suprss_bd}
       - REDIS_URL=redis://redis:6379
-      - SECRET_KEY=your-secret-key-change-this-in-production
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-this-in-production}
     volumes:
       - ./backend:/app
       - backend_logs:/app/logs
@@ -81,10 +79,10 @@ services:
     restart: unless-stopped
     command: celery -A core.celery_app worker --loglevel=info
     environment:
-      - ENVIRONMENT=development
-      - DATABASE_URL=postgresql://postgres:mypassword@postgres:5432/suprss_bd
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-mypassword}@postgres:5432/${POSTGRES_DB:-suprss_bd}
       - REDIS_URL=redis://redis:6379
-      - SECRET_KEY=your-secret-key-change-this-in-production
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-this-in-production}
     volumes:
       - ./backend:/app
       - celery_logs:/app/logs
@@ -104,10 +102,10 @@ services:
     restart: unless-stopped
     command: celery -A core.celery_app beat --loglevel=info
     environment:
-      - ENVIRONMENT=development
-      - DATABASE_URL=postgresql://postgres:mypassword@postgres:5432/suprss_bd
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-mypassword}@postgres:5432/${POSTGRES_DB:-suprss_bd}
       - REDIS_URL=redis://redis:6379
-      - SECRET_KEY=your-secret-key-change-this-in-production
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-this-in-production}
     volumes:
       - ./backend:/app
       - celery_logs:/app/logs
@@ -127,10 +125,10 @@ services:
     restart: unless-stopped
     command: celery -A core.celery_app flower --port=5555
     environment:
-      - ENVIRONMENT=development
-      - DATABASE_URL=postgresql://postgres:mypassword@postgres:5432/suprss_bd
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-mypassword}@postgres:5432/${POSTGRES_DB:-suprss_bd}
       - REDIS_URL=redis://redis:6379
-      - SECRET_KEY=your-secret-key-change-this-in-production
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-this-in-production}
     ports:
       - "5555:5555"
     depends_on:
@@ -145,8 +143,8 @@ services:
     container_name: suprss_pgadmin
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@suprss.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@suprss.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     volumes:
       - pgadmin_data:/var/lib/pgadmin
@@ -156,7 +154,8 @@ services:
       - postgres
     networks:
       - suprss_network
- # Frontend React - Mode Développement
+
+  # Frontend React - Mode Développement
   frontend:
     build:
       context: ./frontend
@@ -172,7 +171,7 @@ services:
       # Exclure node_modules pour éviter les conflits
       - /app/node_modules
     environment:
-      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:8000}
       - WATCHPACK_POLLING=true  # Pour le hot reload dans Docker
       - CHOKIDAR_USEPOLLING=true  # Pour le hot reload dans Docker
       - WDS_SOCKET_PORT=3000
